@@ -25,7 +25,7 @@
 #define DEBUG
 
 // Пин Chip Select для работы SPI карты памяти
-#define CS_PIN (53)
+#define CS_PIN (7)
 // Пин для внешнего датчика температуры DS18B20
 #define DS18B20_PIN (2)
 
@@ -43,7 +43,7 @@ struct MP_Data
     uint8_t minutes = 255;
     uint8_t seconds = 255;
     uint16_t ms = 65535; // мс не передаются модулем TODO - заменить на секунды со старта МК
-    
+
     float latitude = 0.0f;
     float longitude = 0.0f;
     float altitude = 0.0f;

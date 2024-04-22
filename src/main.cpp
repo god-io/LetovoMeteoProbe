@@ -301,7 +301,7 @@ void saveBMP280(MP_Data &data)
 #ifdef DEBUG
     DEBUG_PORT.print("Save BMP280 took: ");
     DEBUG_PORT.print(millis() - start);
-    DEBUG_PORT.print(" ms");
+    DEBUG_PORT.println(" ms");
 #endif
 }
 
@@ -313,6 +313,8 @@ void saveDS18B20(MP_Data &data)
 #endif
 
     debugInfo("Reads DS18B20 outside temperature");
+
+    outsideTemperatureSensor.requestTemperaturesByAddress(outsideThermometerAddress);
     float tempC = outsideTemperatureSensor.getTempC(outsideThermometerAddress);
     if (tempC == DEVICE_DISCONNECTED_C)
     {
@@ -463,7 +465,7 @@ void printToConsole(const MP_Data &data)
     DEBUG_PORT.print(data.humidity, 1);
     DEBUG_PORT.println("rel. percent");
 
-    DEBUG_PORT.println("Pressure: ");
+    DEBUG_PORT.print("Pressure: ");
     DEBUG_PORT.print(data.pressure, 3);
     DEBUG_PORT.println(" Pa");
 
