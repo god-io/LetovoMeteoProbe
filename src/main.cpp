@@ -3,6 +3,7 @@
 // Глобальные переменные
 // Объект (экземпляр класса NMEAGPS из NeoGPS), необходимый для работы с модулем GNSS
 NMEAGPS gps;
+
 // Объект (экземпляр класса Adafruit_BMP280), необходимый для работы с датчиком давления
 Adafruit_BMP280 bmp280;
 
@@ -16,6 +17,9 @@ DeviceAddress outsideThermometerAddress;
 // Объект (экземпляр класса File из SD), необходимый для работы с картой памяти
 File sd;
 
+// Таймер для записи блекбокса в EEPROM
+unsigned long eepromBlackboxTimer = 0;
+
 void setup()
 {
     // Блок кода в условном операторе препроцессора. Не объявлено DEBUG - этот блок кода будет удалён
@@ -26,6 +30,7 @@ void setup()
         ;
     }
 #endif
+
     debugInfo("Initialization process started...");
     debugInfo("Start GPS port on Serial1 at 9600 bps");
     // Начать работу на порту Serial1 для GPS-модуля
@@ -52,7 +57,6 @@ void setup()
             ;
         }
     }
-
 
     // Поиск устройств на шине oneWire
     debugInfo("Locating oneWire devices...");
@@ -97,7 +101,6 @@ void setup()
         outsideTemperatureSensor.setResolution(outsideThermometerAddress, 10);
     }
 
-
     debugInfo("Initializing SD card...");
 
     // Проверяем что карта памяти может работать
@@ -132,7 +135,6 @@ void setup()
     }
 }
 
-
 void loop()
 {
     // На каждое измерение своя структура! Она равна 1 строке данных
@@ -144,6 +146,12 @@ void loop()
         saveDS18B20(meteodata);
 
         printToSD(meteodata);
+
+        if ((millis() - eepromBlackboxTimer) > BLACKBOX_PERIOD_MS)
+        {
+            // Сохраним нужные данные из meteodata в структуру blackbox
+            saveDataToBlackbox(meteodata, eepromBlackboxTimer);
+        }
 
 #ifdef DEBUG
         printToConsole(meteodata);
@@ -287,7 +295,6 @@ bool saveGPS(MP_Data &data)
     return false; // GPS не ОК, возвращаем false
 }
 
-
 void saveBMP280(MP_Data &data)
 {
 #ifdef DEBUG
@@ -304,7 +311,6 @@ void saveBMP280(MP_Data &data)
     DEBUG_PORT.println(" ms");
 #endif
 }
-
 
 void saveDS18B20(MP_Data &data)
 {
@@ -329,7 +335,6 @@ void saveDS18B20(MP_Data &data)
     DEBUG_PORT.println(" ms");
 #endif
 }
-
 
 bool printToSD(const MP_Data &data)
 {
@@ -399,7 +404,6 @@ bool printToSD(const MP_Data &data)
 
     return true;
 }
-
 
 void printToConsole(const MP_Data &data)
 {
@@ -473,7 +477,6 @@ void printToConsole(const MP_Data &data)
     DEBUG_PORT.flush();
 }
 
-
 void printHeaderToSD()
 {
     if (sd)
@@ -492,4 +495,43 @@ void printHeaderToSD()
     {
         debugInfo(F("SD card writing error!"));
     }
+}
+
+void saveDataToBlackbox(const MP_Data &data, unsigned long &timer)
+{
+    // Структура для записи
+    EEPROMBlackbox blackbox;
+
+    blackbox.date = data.date;
+    blackbox.hours = data.hours;
+
+    blackbox.minutes = data.minutes;
+    blackbox.seconds = data.seconds;
+
+    blackbox.latitude = data.latitude;
+    blackbox.longitude = data.longitude;
+    blackbox.altitude = data.altitude;
+    blackbox.speed = data.speed; // м/с
+    blackbox.heading = data.heading;
+
+    blackbox.internal_temp = data.internal_temp; // C
+    blackbox.external_temp = data.external_temp;
+    blackbox.humidity = data.humidity; // отн. проценты
+    blackbox.pressure = data.pressure; // Па
+
+    // Номер записанного блока
+    uint8_t blackboxBlock;
+    // Читаем текущее значение записанного блока
+    EEPROM.get(BLACKBOX_COUNT_EEPROM_ADDRESS, blackboxBlock);
+
+    // Преобразуем блок в стартовый адрес
+    uint16_t nextWriteAddress = BLACKBOX_STRUCT_SIZE * (blackboxBlock + 1);
+
+    // Сохраним новый номер блока
+    EEPROM.put(BLACKBOX_COUNT_EEPROM_ADDRESS, blackboxBlock + 1);
+    // Теперь пихаем в EEPROM структуру
+    EEPROM.put(nextWriteAddress, blackbox);
+
+    // Поставим таймер для следующей итерации
+    timer = millis();
 }
