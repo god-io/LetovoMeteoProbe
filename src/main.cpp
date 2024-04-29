@@ -17,8 +17,15 @@ DeviceAddress outsideThermometerAddress;
 // Объект (экземпляр класса File из SD), необходимый для работы с картой памяти
 File sd;
 
+// Объект (экземпляр класса MPU9250) для работы с акселерометром/гироскопом
+MPU9250 imu;
+// Экземпляр класса I2Cdev для работы с шиной i2c
+I2Cdev I2C_M;
+
 // Таймер для записи блекбокса в EEPROM
 unsigned long eepromBlackboxTimer = 0;
+// Экземпляр структуры для хранения параметров калибровки магнетометра
+magCalibration magCal;
 
 void setup()
 {
@@ -37,7 +44,6 @@ void setup()
     gpsPort.begin(9600);
 
     // TODO: добавить проверку что GPS подключён
-
 
     debugInfo("Check BMP280 pressure sensor");
     if (bmp280.begin(BMP280_ADDRESS_ALT))
@@ -101,6 +107,45 @@ void setup()
         outsideTemperatureSensor.setResolution(outsideThermometerAddress, 10);
     }
 
+    // Акселерометр/гироскоп/магнетометр
+    debugInfo("Check MPU9250 IMU and magnetometer");
+    Wire.begin(); // МБ не надо?
+
+    debugInfo("IMU initialize");
+    imu.initialize();
+
+    debugInfo("Testing device connections...");
+    if (!imu.testConnection())
+    {
+        debugInfo("ERROR - MPU9250 connection failed!");
+        while (true)
+        {
+            ;
+        }
+    }
+
+    debugInfo("MPU9250 connection successful");
+    debugInfo("Set Accel and Gyro ranges");
+    // Установка диапазона акселерометра/гироскопа
+    imu.setFullScaleAccelRange(MPU9250_ACCEL_FS_8); // 8G
+    imu.setFullScaleGyroRange(MPU9250_GYRO_FS_500); // 500 град/с
+
+    debugInfo("Accel range now is:", false);
+    DEBUG_PORT.println(imu.getFullScaleAccelRange());
+    debugInfo("Gyro range now is:", false);
+    DEBUG_PORT.println(imu.getFullScaleGyroRange());
+
+#ifdef ACCEL_GYRO_CALIBRATE
+    calibrateAccelGyro();
+#endif
+
+#ifdef MAGNETOMETER_CALIBRATE
+    calibrateMagnetometer();
+#endif
+
+    debugInfo("Read and set AGM offsets...");
+    setAccelGyroMagOffsets();
+
     debugInfo("Initializing SD card...");
 
     // Проверяем что карта памяти может работать
@@ -144,6 +189,7 @@ void loop()
     {
         saveBMP280(meteodata);
         saveDS18B20(meteodata);
+        saveMPU9250(meteodata);
 
         printToSD(meteodata);
 
@@ -473,6 +519,38 @@ void printToConsole(const MP_Data &data)
     DEBUG_PORT.print(data.pressure, 3);
     DEBUG_PORT.println(" Pa");
 
+    DEBUG_PORT.print("Ax: ");
+    DEBUG_PORT.print(data.ax, 3);
+    DEBUG_PORT.println(" G");
+
+    DEBUG_PORT.print("Ay: ");
+    DEBUG_PORT.print(data.ay, 3);
+    DEBUG_PORT.println(" G");
+
+    DEBUG_PORT.print("Az: ");
+    DEBUG_PORT.print(data.az, 3);
+    DEBUG_PORT.println(" G");
+
+    DEBUG_PORT.print("Gx: ");
+    DEBUG_PORT.print(data.gx, 3);
+    DEBUG_PORT.println(" grad/s");
+
+    DEBUG_PORT.print("Gy: ");
+    DEBUG_PORT.print(data.gy, 3);
+    DEBUG_PORT.println(" grad/s");
+
+    DEBUG_PORT.print("Gz: ");
+    DEBUG_PORT.print(data.gz, 3);
+    DEBUG_PORT.println(" grad/s");
+
+    DEBUG_PORT.print("Heading: ");
+    DEBUG_PORT.print(data.magHeading, 3);
+    DEBUG_PORT.println(" ");
+
+    DEBUG_PORT.print("Tilt Heading: ");
+    DEBUG_PORT.print(data.magTiltHeading, 3);
+    DEBUG_PORT.println(" ");
+
     DEBUG_PORT.println();
     DEBUG_PORT.flush();
 }
@@ -534,4 +612,368 @@ void saveDataToBlackbox(const MP_Data &data, unsigned long &timer)
 
     // Поставим таймер для следующей итерации
     timer = millis();
+}
+
+void calibrateAccelGyro()
+{
+
+    unsigned long start = millis();
+
+    debugInfo("Accel/Gyro Calibrating...");
+    debugInfo("Your MPU9250 should be placed in horizontal position, with package letters facing up");
+
+    // Установка дефолтного диапазона акселерометра/гироскопа
+    imu.setFullScaleAccelRange(MPU9250_ACCEL_FS_2); // 2G
+    imu.setFullScaleGyroRange(MPU9250_GYRO_FS_250); // 250 град/с
+
+    // TODO: калибровка для 2/250, а использовать надо для 8/500. Что надо изменить, чтобы это работало?
+
+    debugInfo("Reset Accel and Gyro offsets");
+    // сбросить оффсеты
+    imu.setXAccelOffset(0);
+    imu.setYAccelOffset(0);
+    imu.setZAccelOffset(0);
+    imu.setXGyroOffset(0);
+    imu.setYGyroOffset(0);
+    imu.setZGyroOffset(0);
+
+    delay(100); // Ждём пока датчик одумается
+
+    // Взял отсюда https://alexgyver.ru/arduino-mpu6050/
+    long offsets[6];
+    long offsetsOld[6] = {0, 0, 0, 0, 0, 0}; // Важно обнулить!!!
+    int16_t mpuGet[6];
+    uint8_t bufferSize = 100;
+
+    uint8_t calibrationIterations = 50;
+
+    debugInfo("Calibration start. It will take about 25 seconds");
+    for (byte n = 0; n < calibrationIterations; n++)
+    { // 10 итераций калибровки
+        for (byte j = 0; j < 6; j++)
+        { // обнуляем калибровочный массив
+            offsets[j] = 0;
+        }
+
+        for (byte i = 0; i < 100 + bufferSize; i++)
+        { // делаем BUFFER_SIZE измерений для усреднения
+            imu.getMotion6(&mpuGet[0], &mpuGet[1], &mpuGet[2], &mpuGet[3], &mpuGet[4], &mpuGet[5]);
+            if (i >= 99)
+            { // пропускаем первые 99 измерений (мусор)
+                for (byte j = 0; j < 6; j++)
+                {
+                    offsets[j] += (long)mpuGet[j]; // записываем в калибровочный массив
+                }
+            }
+        }
+
+        for (byte i = 0; i < 6; i++)
+        {
+            offsets[i] = offsetsOld[i] - ((long)offsets[i] / bufferSize); // учитываем предыдущую калибровку
+            if (i == 2)
+                offsets[i] += 16384; // если ось Z, калибруем в 16384
+            offsetsOld[i] = offsets[i];
+        }
+        // ставим новые оффсеты
+        imu.setXAccelOffset(offsets[0] / 8);
+        imu.setYAccelOffset(offsets[1] / 8);
+        imu.setZAccelOffset(offsets[2] / 8);
+        imu.setXGyroOffset(offsets[3] / 4);
+        imu.setYGyroOffset(offsets[4] / 4);
+        imu.setZGyroOffset(offsets[5] / 4);
+        delay(10);
+
+        if (n % 10 == 0)
+        {
+            debugInfo(".", false);
+        }
+    }
+
+    // пересчитываем для хранения
+    for (byte i = 0; i < 6; i++)
+    {
+        if (i < 3)
+            offsets[i] /= 8;
+        else
+            offsets[i] /= 4;
+    }
+
+    debugInfo("Calibrated offsets are: ax, ay, az, gx, gy, gz");
+    for (byte k = 0; k < 6; k++)
+    {
+        DEBUG_PORT.print(offsets[k]);
+        DEBUG_PORT.print(',');
+    }
+
+    debugInfo("Save offsets to EEPROM");
+    // запись в память. Массивы тоже можно! Запишется 6*4=24 байта
+    EEPROM.put(CALIBRATION_ACCEL_GYRO_EEPROM_ADDRESS, offsets);
+
+    DEBUG_PORT.println();
+    debugInfo("Accel/Gyro Calibration took: ");
+    DEBUG_PORT.print(millis() - start);
+    DEBUG_PORT.println(" ms");
+    DEBUG_PORT.flush();
+
+    debugInfo("Infinite loop readings - check it:");
+    int16_t ax, ay, az, gx, gy, gz;
+    // Бесконечно печатаем результаты измерений в консоль
+    while (true)
+    {
+        imu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+        DEBUG_PORT.println("ax ay az");
+        DEBUG_PORT.print((float)ax / 16384);
+        DEBUG_PORT.print(" ");
+        DEBUG_PORT.print((float)ay / 16384);
+        DEBUG_PORT.print(" ");
+        DEBUG_PORT.println((float)az / 16384);
+        DEBUG_PORT.println("gx gy gz");
+        DEBUG_PORT.print((float)gx * 250 / 32768);
+        DEBUG_PORT.print(" ");
+        DEBUG_PORT.print((float)gy * 250 / 32768);
+        DEBUG_PORT.print(" ");
+        DEBUG_PORT.println((float)gz * 250 / 32768);
+        delay(1000);
+    }
+}
+
+void calibrateMagnetometer()
+{
+    // Код скомпилирован из примера
+    unsigned long start = millis();
+
+    debugInfo("Magnetometer Calibrating...");
+
+    uint16_t calibrationIterations = 1500;
+    uint8_t magBuffer[6];
+    int16_t mx, my, mz;
+    float Mxyz[3];
+    volatile float mx_sample[3];
+    volatile float my_sample[3];
+    volatile float mz_sample[3];
+
+    static float mx_centre = 0;
+    static float my_centre = 0;
+    static float mz_centre = 0;
+
+    volatile int mx_max = 0;
+    volatile int my_max = 0;
+    volatile int mz_max = 0;
+
+    volatile int mx_min = 0;
+    volatile int my_min = 0;
+    volatile int mz_min = 0;
+
+    // Это взято из из функции getMotion9(), в примере нет байпаса
+    I2C_M.writeByte(MPU9250_DEFAULT_ADDRESS, MPU9250_RA_INT_PIN_CFG, 0x02); // set i2c bypass enable pin to true to access magnetometer
+    delay(10);
+    I2C_M.writeByte(MPU9150_RA_MAG_ADDRESS, 0x0A, 0x01); // enable the magnetometer
+    delay(10);
+
+    debugInfo("Your must to rotate magnetometer at any side for 20-30 s");
+    for (unsigned int i = 0; i < calibrationIterations; i++)
+    {
+        I2C_M.writeByte(MPU9250_DEFAULT_ADDRESS, MPU9250_RA_INT_PIN_CFG, 0x02); // set i2c bypass enable pin to true to access magnetometer
+        delay(10);
+        I2C_M.writeByte(MPU9150_RA_MAG_ADDRESS, 0x0A, 0x01); // enable the magnetometer
+        delay(10);
+        // Это копипаст из функции getMotion9()
+        I2C_M.readBytes(MPU9150_RA_MAG_ADDRESS, MPU9150_RA_MAG_XOUT_L, 6, magBuffer);
+
+        mx = ((int16_t)(magBuffer[1]) << 8) | magBuffer[0];
+        my = ((int16_t)(magBuffer[3]) << 8) | magBuffer[2];
+        mz = ((int16_t)(magBuffer[5]) << 8) | magBuffer[4];
+
+        Mxyz[0] = (double)mx * 1200 / 4096;
+        Mxyz[1] = (double)my * 1200 / 4096;
+        Mxyz[2] = (double)mz * 1200 / 4096;
+        mx_sample[2] = Mxyz[0];
+        my_sample[2] = Mxyz[1];
+        mz_sample[2] = Mxyz[2];
+
+        if (mx_sample[2] >= mx_sample[1])
+            mx_sample[1] = mx_sample[2];
+        if (my_sample[2] >= my_sample[1])
+            my_sample[1] = my_sample[2]; // find max value
+        if (mz_sample[2] >= mz_sample[1])
+            mz_sample[1] = mz_sample[2];
+
+        if (mx_sample[2] <= mx_sample[0])
+            mx_sample[0] = mx_sample[2];
+        if (my_sample[2] <= my_sample[0])
+            my_sample[0] = my_sample[2]; // find min value
+        if (mz_sample[2] <= mz_sample[0])
+            mz_sample[0] = mz_sample[2];
+
+        if (i % 100 == 0)
+        {
+            debugInfo(".", false);
+        }
+    }
+
+    mx_max = mx_sample[1];
+    my_max = my_sample[1];
+    mz_max = mz_sample[1];
+
+    mx_min = mx_sample[0];
+    my_min = my_sample[0];
+    mz_min = mz_sample[0];
+
+    mx_centre = (mx_max + mx_min) / 2.f;
+    my_centre = (my_max + my_min) / 2.f;
+    mz_centre = (mz_max + mz_min) / 2.f;
+
+    DEBUG_PORT.println();
+    debugInfo("Calibrated offsets are: mx, my, mz");
+    DEBUG_PORT.print(mx_centre);
+    DEBUG_PORT.print(',');
+    DEBUG_PORT.print(my_centre);
+    DEBUG_PORT.print(',');
+    DEBUG_PORT.println(mz_centre);
+
+    magCalibration offsets = {mx_centre, my_centre, mz_centre};
+    // запись в память. Массивы тоже можно! Запишется 3*4=12 байтd
+    debugInfo("Save calibration data to EEPROM");
+    EEPROM.put(CALIBRATION_MAGNETOMETER_EEPROM_ADDRESS, offsets);
+
+    debugInfo("Magnetometer Calibration took: ");
+    DEBUG_PORT.print(millis() - start);
+    DEBUG_PORT.println(" ms");
+    DEBUG_PORT.flush();
+
+    debugInfo("Infinite loop readings - check it:");
+    // Бесконечно печатаем результаты измерений в консоль
+    while (true)
+    {
+        I2C_M.writeByte(MPU9250_DEFAULT_ADDRESS, MPU9250_RA_INT_PIN_CFG, 0x02); // set i2c bypass enable pin to true to access magnetometer
+        delay(10);
+        I2C_M.writeByte(MPU9150_RA_MAG_ADDRESS, 0x0A, 0x01); // enable the magnetometer
+        delay(10);
+        // Это копипаст из функции getMotion9()
+        I2C_M.readBytes(MPU9150_RA_MAG_ADDRESS, MPU9150_RA_MAG_XOUT_L, 6, magBuffer);
+
+        mx = ((int16_t)(magBuffer[1]) << 8) | magBuffer[0];
+        my = ((int16_t)(magBuffer[3]) << 8) | magBuffer[2];
+        mz = ((int16_t)(magBuffer[5]) << 8) | magBuffer[4];
+
+        Mxyz[0] = (float)mx * 1200 / 4096 - mx_centre;
+        Mxyz[1] = (float)my * 1200 / 4096 - my_centre;
+        Mxyz[2] = (float)mz * 1200 / 4096 - mz_centre;
+
+        DEBUG_PORT.println("RAW - mx my mz");
+        DEBUG_PORT.print(mx);
+        DEBUG_PORT.print(" ");
+        DEBUG_PORT.print(my);
+        DEBUG_PORT.print(" ");
+        DEBUG_PORT.println(mz);
+        DEBUG_PORT.println("FIXED - Mx My Mz");
+        DEBUG_PORT.print(Mxyz[0]);
+        DEBUG_PORT.print(" ");
+        DEBUG_PORT.print(Mxyz[1]);
+        DEBUG_PORT.print(" ");
+        DEBUG_PORT.println(Mxyz[2]);
+        delay(1000);
+    }
+}
+
+void setAccelGyroMagOffsets()
+{
+    debugInfo("Reading offsets from EEPROM");
+    // Храним оффсеты временно в массиве
+    long agOffsets[6];
+    // Читаем из EEPROM
+    EEPROM.get(CALIBRATION_ACCEL_GYRO_EEPROM_ADDRESS, agOffsets);
+    EEPROM.get(CALIBRATION_MAGNETOMETER_EEPROM_ADDRESS, magCal);
+
+    debugInfo("Set offsets for IMU...");
+    // Установка оффсетов IMU в память сенсора
+    // Оффсеты магнитометра нельзя залить в память сенсора.
+    imu.setXAccelOffset(agOffsets[0]);
+    imu.setYAccelOffset(agOffsets[1]);
+    imu.setZAccelOffset(agOffsets[2]);
+    imu.setXGyroOffset(agOffsets[3]);
+    imu.setYGyroOffset(agOffsets[4]);
+    imu.setZGyroOffset(agOffsets[5]);
+
+#ifdef DEBUG
+    debugInfo("Offsets: ax,ay,az,gx,gy,gz");
+    for (long o : agOffsets)
+    {
+        DEBUG_PORT.print(o);
+        DEBUG_PORT.print(',');
+    }
+
+    DEBUG_PORT.println();
+    debugInfo("Offsets: mx,my,mz");
+    DEBUG_PORT.print(magCal.mx);
+    DEBUG_PORT.print(',');
+    DEBUG_PORT.print(magCal.my);
+    DEBUG_PORT.print(',');
+    DEBUG_PORT.println(magCal.mz);
+
+#endif
+}
+
+void saveMPU9250(MP_Data &data)
+{
+#ifdef DEBUG
+    unsigned long start = millis();
+#endif
+
+    // Сырые данные с датчика
+    int16_t ax, ay, az, gx, gy, gz, mx, my, mz;
+    // Обработанные данные с магнетометра
+    float c_mx, c_my, c_mz;
+    // Данные указания на север прямо и под наклоном
+    float heading, tiltHeading;
+    imu.getMotion9(&ax, &ay, &az, &gx, &gy, &gz, &mx, &my, &mz);
+
+    // Преобразуем данные и записываем в структуру
+    // Оффсеты уже применены датчиком
+    data.ax = (float)ax / 4096; // Для 8 G и 500 град/с, см тут! https://mjwhite8119.github.io/Robots/mpu6050
+    data.ay = (float)ay / 4096;
+    data.az = (float)az / 4096;
+
+    data.gx = (float)gx * 500 / 32768;
+    data.gy = (float)gy * 500 / 32768;
+    data.gz = (float)gz * 500 / 32768;
+
+    // Обрабатываем и корректируем данные магнитометра с помощью оффсетов
+    c_mx = (float)mx * 1200 / 4096 - magCal.mx;
+    c_my = (float)my * 1200 / 4096 - magCal.my;
+    c_mz = (float)mz * 1200 / 4096 - magCal.mz;
+
+    // Направления взяты из примеров
+    heading = 180 * atan2(c_my, c_mx) / PI;
+    if (heading < 0)
+        heading += 360;
+    
+    debugInfo("HEADING: ", false);
+    DEBUG_PORT.println(heading);
+
+    data.magHeading = heading;
+
+    float pitch = asin(-ax);
+    float roll = asin(ay / cos(pitch));
+
+    float xh = c_mx * cos(pitch) + c_mz * sin(pitch);
+    float yh = c_mx * sin(roll) * sin(pitch) + c_my * cos(roll) - c_mz * sin(roll) * cos(pitch);
+    float zh = -c_mx * cos(roll) * sin(pitch) + c_my * sin(roll) + c_mz * cos(roll) * cos(pitch);
+
+
+    tiltHeading = 180 * atan2(yh, xh) / PI;
+
+    if (yh < 0)
+        tiltHeading += 360;
+
+    debugInfo("HEADING: ", false);
+    DEBUG_PORT.println(tiltHeading);
+    data.magTiltHeading = tiltHeading;
+
+#ifdef DEBUG
+    debugInfo("Get MPU9250 AGM data took: ");
+    DEBUG_PORT.print(millis() - start);
+    DEBUG_PORT.println(" ms");
+    DEBUG_PORT.flush();
+#endif
 }

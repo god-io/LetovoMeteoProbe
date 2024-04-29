@@ -20,11 +20,28 @@
 // Универсальная библиотека для Maxim/Dallas термометров
 #include <DallasTemperature.h>
 
+// Библиотека для работы с шиной I2C для акселерометра/гироскопа
+#include <I2Cdev.h>
+// Библиотека акселерометра/гироскопа/магнетометра
+#include <MPU9250.h>
+
 // Библиотека для работы с EEPROM
 #include <EEPROM.h>
 
 // Можно заворачивать куски кода в #ifdef DEBUG... #endif чтобы сразу включить/выключить одним переключателем
 #define DEBUG
+
+// Режим калибровки акселерометра и гироскопа
+// #define ACCEL_GYRO_CALIBRATE
+// Режим калибровки магнитометра.
+// #define MAGNETOMETER_CALIBRATE
+
+// Оба параметра включать сразу нельзя! Калибровка акселя/гиро требует покоя, а магнитометра - вращения
+#ifdef ACCEL_GYRO_CALIBRATE
+#ifdef MAGNETOMETER_CALIBRATE
+#error "You must to calibrate only one sensor: accel/gyro OR magnetometer! undef one of the parameter or both"
+#endif
+#endif
 
 // Пин Chip Select для работы SPI карты памяти
 #define CS_PIN (7)
@@ -35,6 +52,10 @@
 #define BLACKBOX_COUNT_EEPROM_ADDRESS (4050)
 // Адрес ячейки EEPROM для хранения размера структуры. Для будущих подсчётов
 #define BLACKBOX_SIZE_EEPROM_ADDRESS (4051)
+
+// Адрес начала ячеек EEPROM для хранения данных калибровки акселерометра/гироскопа
+#define CALIBRATION_ACCEL_GYRO_EEPROM_ADDRESS (4001)
+#define CALIBRATION_MAGNETOMETER_EEPROM_ADDRESS (4030)
 
 // Константа для пересчёта км/ч в м/с
 #define KMH_TO_MS (1000.0f / 3600)
@@ -67,6 +88,17 @@ struct MP_Data
     float external_temp = -1000.0f;
     float humidity = -1000.0f; // отн. проценты
     float pressure = -1000.0f; // Па
+
+    float ax;
+    float ay;
+    float az;
+
+    float gx;
+    float gy;
+    float gz;
+
+    float magHeading;
+    float magTiltHeading;
 };
 
 // Заставить компилятор максимально упаковать данные структуры в памяти без пробелов. Влияет на sizeof()
@@ -89,9 +121,19 @@ struct EEPROMBlackbox
     float external_temp;
     float humidity; // отн. проценты
     float pressure; // Па
+
 };
 // Вернуть всё как было
 #pragma pack(pop)
+
+// Структура для хранения данных калибровки магнетометра. Так как их нельзя занести в память датчика, носим с собой
+struct magCalibration
+{
+    float mx;
+    float my;
+    float mz;
+};
+
 
 // Размер структуры для сохранения в байтах - автоподсчёт
 #define BLACKBOX_STRUCT_SIZE (sizeof(struct EEPROMBlackbox))
@@ -120,11 +162,26 @@ void printHeaderToSD();
 // Сохраняет нужные данные в EEPROM блекбокс.
 void saveDataToBlackbox(const MP_Data &data, unsigned long &timer);
 
+
+// Калибрует акселерометр и гироскоп. Записывает калибровку в EEPROM
+void calibrateAccelGyro();
+// Калибрует магнетометр. Записывает калибровку в EEPROM
+void calibrateMagnetometer();
+// Читает оффсеты из EEPROM и загружает в IMU и память
+void setAccelGyroMagOffsets();
+// Сохраняет данные с датчика MPU9250 в структуру
+void saveMPU9250(MP_Data &data);
+
+
 // Печатает простую строку в дебаг. Только строка!!!
-void debugInfo(const char *str)
+void debugInfo(const char *str, bool crlf = true)
 {
 #ifdef DEBUG
-    DEBUG_PORT.println(str);
+    if (crlf)
+        DEBUG_PORT.println(str);
+    else
+        DEBUG_PORT.print(str);
+
     DEBUG_PORT.flush();
 #endif
 }
