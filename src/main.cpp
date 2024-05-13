@@ -636,10 +636,14 @@ void saveDataToBlackbox(const MP_Data &data, unsigned long &timer)
     // Преобразуем блок в стартовый адрес
     uint16_t nextWriteAddress = BLACKBOX_STRUCT_SIZE * (blackboxBlock + 1);
 
-    // Сохраним новый номер блока
-    EEPROM.put(BLACKBOX_COUNT_EEPROM_ADDRESS, blackboxBlock + 1);
-    // Теперь пихаем в EEPROM структуру
-    EEPROM.put(nextWriteAddress, blackbox);
+    // Проверим что не вышли за границы памяти EEPROM
+    if (nextWriteAddress < (4000 - BLACKBOX_STRUCT_SIZE))
+    {
+        // Сохраним новый номер блока
+        EEPROM.put(BLACKBOX_COUNT_EEPROM_ADDRESS, blackboxBlock + 1);
+        // Теперь пихаем в EEPROM структуру
+        EEPROM.put(nextWriteAddress, blackbox);
+    }
 
     // Поставим таймер для следующей итерации
     timer = millis();
