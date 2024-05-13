@@ -180,6 +180,10 @@ void setup()
             ;
         }
     }
+
+    // Режим сторжевого сброса , таймаут ~8с
+    Watchdog.enable(RESET_MODE, WDT_PRESCALER_1024);
+    Watchdog.reset();
 }
 
 void loop()
@@ -205,6 +209,9 @@ void loop()
         printToConsole(meteodata);
 #endif
     }
+
+    // Обнулить (покормить) таймер, чтобы он не перезапускал МК
+    Watchdog.reset();
 }
 
 // Возвращает true, если gps валиден, false если нет

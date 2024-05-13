@@ -28,6 +28,10 @@
 // Библиотека для работы с EEPROM
 #include <EEPROM.h>
 
+
+// Библиотека watchdog-timer
+#include <GyverWDT.h>
+
 // Можно заворачивать куски кода в #ifdef DEBUG... #endif чтобы сразу включить/выключить одним переключателем
 #define DEBUG
 
