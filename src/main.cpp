@@ -47,12 +47,15 @@ void setup()
     }
 #endif
 
+    // Выключаем панель статуса
+    setStatusLeds();
+
+    LED_ON(SUCCESS_POWER_PIN);
+
     debugInfo("Initialization process started...");
     debugInfo("Start GPS port on Serial1 at 9600 bps");
     // Начать работу на порту Serial1 для GPS-модуля
     gpsPort.begin(9600);
-
-    // TODO: добавить проверку что GPS подключён
 
     debugInfo("Check BMP280 pressure sensor");
     if (bmp280.begin(BMP280_ADDRESS_ALT))
@@ -63,6 +66,8 @@ void setup()
                            Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
                            Adafruit_BMP280::FILTER_X16,      /* Filtering. */
                            Adafruit_BMP280::STANDBY_MS_250); /* Standby time. */
+
+        LED_ON(SUCCESS_BMP280_PIN);
     }
     else
     {
@@ -114,6 +119,8 @@ void setup()
 
         // Разрешение АЦП датчика. До 12 бит (4096 градации), но медленно получает данные (750 мс!)
         outsideTemperatureSensor.setResolution(outsideThermometerAddress, 10);
+
+        LED_ON(SUCCESS_DS18B20_PIN);
     }
 
     // Акселерометр/гироскоп/магнетометр
@@ -138,6 +145,8 @@ void setup()
     // Установка диапазона акселерометра/гироскопа
     imu.setFullScaleAccelRange(MPU9250_ACCEL_FS_8); // 8G
     imu.setFullScaleGyroRange(MPU9250_GYRO_FS_500); // 500 град/с
+
+    LED_ON(SUCCESS_MPU9250_PIN);
 
 #ifdef DEBUG
     debugInfo("Accel range now is:", false);
@@ -179,6 +188,8 @@ void setup()
         debugInfo("File from SD Card opened SUCCESSFULLY!");
 
         printHeaderToSD(); // Печатаем заголовок в файл
+
+        LED_ON(SUCCESS_SD_PIN);
     }
     else
     {
@@ -201,6 +212,8 @@ void loop()
 
     if (saveGPS(meteodata)) // Нет смысла опрашивать датчики, если gps невалиден вообще
     {
+        LED_ON(SUCCESS_GPS_PIN);
+
         saveBMP280(meteodata);
         saveDS18B20(meteodata);
         saveMPU9250(meteodata);
@@ -992,4 +1005,23 @@ void saveMPU9250(MP_Data &data)
     DEBUG_PORT.println(" ms");
     DEBUG_PORT.flush();
 #endif
+}
+
+void setStatusLeds()
+{
+    // Режим пинов - вывод
+    pinMode(SUCCESS_POWER_PIN, OUTPUT);
+    pinMode(SUCCESS_GPS_PIN, OUTPUT);
+    pinMode(SUCCESS_BMP280_PIN, OUTPUT);
+    pinMode(SUCCESS_DS18B20_PIN, OUTPUT);
+    pinMode(SUCCESS_MPU9250_PIN, OUTPUT);
+    pinMode(SUCCESS_SD_PIN, OUTPUT);
+
+    // Выключаем зелёные
+    LED_OFF(SUCCESS_POWER_PIN);
+    LED_OFF(SUCCESS_GPS_PIN);
+    LED_OFF(SUCCESS_BMP280_PIN);
+    LED_OFF(SUCCESS_DS18B20_PIN);
+    LED_OFF(SUCCESS_MPU9250_PIN);
+    LED_OFF(SUCCESS_SD_PIN);
 }

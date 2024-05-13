@@ -28,7 +28,6 @@
 // Библиотека для работы с EEPROM
 #include <EEPROM.h>
 
-
 // Библиотека watchdog-timer
 #include <GyverWDT.h>
 
@@ -51,6 +50,14 @@
 #define CS_PIN (7)
 // Пин для внешнего датчика температуры DS18B20
 #define DS18B20_PIN (2)
+
+// Пины для статусных светодиодов. На меге много портов
+#define SUCCESS_POWER_PIN (29)
+#define SUCCESS_GPS_PIN (30)
+#define SUCCESS_BMP280_PIN (31)
+#define SUCCESS_DS18B20_PIN (32)
+#define SUCCESS_MPU9250_PIN (33)
+#define SUCCESS_SD_PIN (34)
 
 // Адрес ячейки EEPROM для хранения данных о номере блока
 #define BLACKBOX_COUNT_EEPROM_ADDRESS (4050)
@@ -93,10 +100,10 @@ struct MP_Data
     float humidity = -1000.0f; // отн. проценты
     float pressure = -1000.0f; // Па
 
-    float ax;  // в единицах g
+    float ax; // в единицах g
     float ay;
     float az;
-    float aAmp;  // суммарная амплитуда
+    float aAmp; // суммарная амплитуда
 
     float gx;
     float gy;
@@ -125,7 +132,6 @@ struct EEPROMBlackbox
     float external_temp;
     float humidity; // отн. проценты
     float pressure; // Па
-
 };
 // Вернуть всё как было
 #pragma pack(pop)
@@ -137,7 +143,6 @@ struct magCalibration
     float my;
     float mz;
 };
-
 
 // Размер структуры для сохранения в байтах - автоподсчёт
 #define BLACKBOX_STRUCT_SIZE (sizeof(struct EEPROMBlackbox))
@@ -166,7 +171,6 @@ void printHeaderToSD();
 // Сохраняет нужные данные в EEPROM блекбокс.
 void saveDataToBlackbox(const MP_Data &data, unsigned long &timer);
 
-
 // Калибрует акселерометр и гироскоп. Записывает калибровку в EEPROM
 void calibrateAccelGyro();
 // Калибрует магнетометр. Записывает калибровку в EEPROM
@@ -175,7 +179,12 @@ void calibrateMagnetometer();
 void setAccelGyroMagOffsets();
 // Сохраняет данные с датчика MPU9250 в структуру
 void saveMPU9250(MP_Data &data);
+// Устанавливает пины статуса датчиков
+void setStatusLeds();
 
+// Макросы, прикидывающиеся функциями. Зажигает и тушит светодиод
+#define LED_ON(pin) (digitalWrite((pin), (1)))
+#define LED_OFF(pin) (digitalWrite((pin), (0)))
 
 // Печатает простую строку в дебаг. Только строка!!!
 void debugInfo(const char *str, bool crlf = true)
