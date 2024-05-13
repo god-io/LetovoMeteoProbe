@@ -29,6 +29,15 @@ magCalibration magCal;
 
 void setup()
 {
+#ifndef ACCEL_GYRO_CALIBRATE
+#ifndef MAGNETOMETER_CALIBRATE
+    // Режим сторжевого таймера - сброс , таймаут ~8с
+    // Запуск только в рабочем режиме без калибровок, а то они долгие
+    Watchdog.enable(RESET_MODE, WDT_PRESCALER_1024);
+    Watchdog.reset();
+#endif
+#endif
+
     // Блок кода в условном операторе препроцессора. Не объявлено DEBUG - этот блок кода будет удалён
 #ifdef DEBUG
     DEBUG_PORT.begin(9600);
@@ -181,8 +190,7 @@ void setup()
         }
     }
 
-    // Режим сторжевого сброса , таймаут ~8с
-    Watchdog.enable(RESET_MODE, WDT_PRESCALER_1024);
+    // Нет нужны окружать ifdef калибровок, так как функции калибровок блокирующие исполнение далее
     Watchdog.reset();
 }
 
