@@ -39,6 +39,10 @@
 // Режим калибровки магнитометра.
 // #define MAGNETOMETER_CALIBRATE
 
+// Режим сброса EEPROM Blackbox
+// #define EEPROM_BLACKBOX_RESET
+
+
 // Оба параметра включать сразу нельзя! Калибровка акселя/гиро требует покоя, а магнитометра - вращения
 #ifdef ACCEL_GYRO_CALIBRATE
 #ifdef MAGNETOMETER_CALIBRATE
@@ -181,6 +185,9 @@ void setAccelGyroMagOffsets();
 void saveMPU9250(MP_Data &data);
 // Устанавливает пины статуса датчиков
 void setStatusLeds();
+
+// Сбрасывает счётчик записанных блоков в EEPROM блекбоксе
+void eepromBlackboxReset();
 
 // Макросы, прикидывающиеся функциями. Зажигает и тушит светодиод
 #define LED_ON(pin) (digitalWrite((pin), (1)))

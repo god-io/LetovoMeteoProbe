@@ -31,10 +31,12 @@ void setup()
 {
 #ifndef ACCEL_GYRO_CALIBRATE
 #ifndef MAGNETOMETER_CALIBRATE
+#ifndef EEPROM_BLACKBOX_RESET
     // Режим сторжевого таймера - сброс , таймаут ~8с
-    // Запуск только в рабочем режиме без калибровок, а то они долгие
+    // Запуск только в рабочем режиме без калибровок и стираний, а то они долгие
     Watchdog.enable(RESET_MODE, WDT_PRESCALER_1024);
     Watchdog.reset();
+#endif
 #endif
 #endif
 
@@ -47,6 +49,10 @@ void setup()
     }
 #endif
 
+#ifdef EEPROM_BLACKBOX_RESET
+    // Сброс счётчика хранения блекбокса в EEPROM
+    eepromBlackboxReset();
+#endif
     // Выключаем панель статуса
     setStatusLeds();
 
@@ -628,8 +634,8 @@ void saveDataToBlackbox(const MP_Data &data, unsigned long &timer)
     blackbox.humidity = data.humidity; // отн. проценты
     blackbox.pressure = data.pressure; // Па
 
-    // Номер записанного блока
-    uint8_t blackboxBlock;
+    // Номер записанного блока. Может быть равен -1
+    int8_t blackboxBlock;
     // Читаем текущее значение записанного блока
     EEPROM.get(BLACKBOX_COUNT_EEPROM_ADDRESS, blackboxBlock);
 
@@ -1028,4 +1034,17 @@ void setStatusLeds()
     LED_OFF(SUCCESS_DS18B20_PIN);
     LED_OFF(SUCCESS_MPU9250_PIN);
     LED_OFF(SUCCESS_SD_PIN);
+}
+
+void eepromBlackboxReset()
+{
+    debugInfo(F("RESET EEPROM BLACKBOX COUNTER"));
+    EEPROM.put(BLACKBOX_COUNT_EEPROM_ADDRESS, -1);
+    EEPROM.put(BLACKBOX_SIZE_EEPROM_ADDRESS, BLACKBOX_STRUCT_SIZE);
+
+    while (true)
+    {
+        debugInfo(".");
+        delay(1000);
+    }
 }
