@@ -89,16 +89,16 @@ struct MP_Data
     float humidity = -1000.0f; // отн. проценты
     float pressure = -1000.0f; // Па
 
-    float ax;
+    float ax;  // в единицах g
     float ay;
     float az;
+    float aAmp;  // суммарная амплитуда
 
     float gx;
     float gy;
     float gz;
 
     float magHeading;
-    float magTiltHeading;
 };
 
 // Заставить компилятор максимально упаковать данные структуры в памяти без пробелов. Влияет на sizeof()

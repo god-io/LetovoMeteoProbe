@@ -130,10 +130,12 @@ void setup()
     imu.setFullScaleAccelRange(MPU9250_ACCEL_FS_8); // 8G
     imu.setFullScaleGyroRange(MPU9250_GYRO_FS_500); // 500 град/с
 
+#ifdef DEBUG
     debugInfo("Accel range now is:", false);
     DEBUG_PORT.println(imu.getFullScaleAccelRange());
     debugInfo("Gyro range now is:", false);
     DEBUG_PORT.println(imu.getFullScaleGyroRange());
+#endif
 
 #ifdef ACCEL_GYRO_CALIBRATE
     calibrateAccelGyro();
@@ -531,6 +533,10 @@ void printToConsole(const MP_Data &data)
     DEBUG_PORT.print(data.az, 3);
     DEBUG_PORT.println(" G");
 
+    DEBUG_PORT.print("A Amp: ");
+    DEBUG_PORT.print(data.aAmp, 3);
+    DEBUG_PORT.println(" G");
+
     DEBUG_PORT.print("Gx: ");
     DEBUG_PORT.print(data.gx, 3);
     DEBUG_PORT.println(" grad/s");
@@ -547,10 +553,6 @@ void printToConsole(const MP_Data &data)
     DEBUG_PORT.print(data.magHeading, 3);
     DEBUG_PORT.println(" ");
 
-    DEBUG_PORT.print("Tilt Heading: ");
-    DEBUG_PORT.print(data.magTiltHeading, 3);
-    DEBUG_PORT.println(" ");
-
     DEBUG_PORT.println();
     DEBUG_PORT.flush();
 }
@@ -564,7 +566,8 @@ void printHeaderToSD()
         sd.println(F("------------"));
         sd.print(F("year,month,date,hours,minutes,seconds,ms,"));
         sd.print(F("latitude,longitude,altitude,speed,heading,V_N,V_E,V_D,HDOP,VDOP,satellites,"));
-        sd.print(F("in_temp,out_temp,humidity,pressure"));
+        sd.print(F("in_temp,out_temp,humidity,pressure,"));
+        sd.print(F("ax,ay,az,aAmp,gx,gy,gz,magHeading"));
 
         sd.println();
         sd.flush();
@@ -698,22 +701,26 @@ void calibrateAccelGyro()
             offsets[i] /= 4;
     }
 
+#ifdef DEBUG
     debugInfo("Calibrated offsets are: ax, ay, az, gx, gy, gz");
     for (byte k = 0; k < 6; k++)
     {
         DEBUG_PORT.print(offsets[k]);
         DEBUG_PORT.print(',');
     }
+#endif
 
     debugInfo("Save offsets to EEPROM");
     // запись в память. Массивы тоже можно! Запишется 6*4=24 байта
     EEPROM.put(CALIBRATION_ACCEL_GYRO_EEPROM_ADDRESS, offsets);
 
+#ifdef DEBUG
     DEBUG_PORT.println();
     debugInfo("Accel/Gyro Calibration took: ");
     DEBUG_PORT.print(millis() - start);
     DEBUG_PORT.println(" ms");
     DEBUG_PORT.flush();
+#endif
 
     debugInfo("Infinite loop readings - check it:");
     int16_t ax, ay, az, gx, gy, gz;
@@ -721,6 +728,7 @@ void calibrateAccelGyro()
     while (true)
     {
         imu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+#ifdef DEBUG
         DEBUG_PORT.println("ax ay az");
         DEBUG_PORT.print((float)ax / 16384);
         DEBUG_PORT.print(" ");
@@ -733,6 +741,7 @@ void calibrateAccelGyro()
         DEBUG_PORT.print((float)gy * 250 / 32768);
         DEBUG_PORT.print(" ");
         DEBUG_PORT.println((float)gz * 250 / 32768);
+#endif
         delay(1000);
     }
 }
@@ -823,6 +832,7 @@ void calibrateMagnetometer()
     my_centre = (my_max + my_min) / 2.f;
     mz_centre = (mz_max + mz_min) / 2.f;
 
+#ifdef DEBUG
     DEBUG_PORT.println();
     debugInfo("Calibrated offsets are: mx, my, mz");
     DEBUG_PORT.print(mx_centre);
@@ -830,16 +840,20 @@ void calibrateMagnetometer()
     DEBUG_PORT.print(my_centre);
     DEBUG_PORT.print(',');
     DEBUG_PORT.println(mz_centre);
+#endif
 
     magCalibration offsets = {mx_centre, my_centre, mz_centre};
     // запись в память. Массивы тоже можно! Запишется 3*4=12 байтd
     debugInfo("Save calibration data to EEPROM");
     EEPROM.put(CALIBRATION_MAGNETOMETER_EEPROM_ADDRESS, offsets);
 
+#ifdef DEBUG
     debugInfo("Magnetometer Calibration took: ");
+
     DEBUG_PORT.print(millis() - start);
     DEBUG_PORT.println(" ms");
     DEBUG_PORT.flush();
+#endif
 
     debugInfo("Infinite loop readings - check it:");
     // Бесконечно печатаем результаты измерений в консоль
@@ -860,6 +874,7 @@ void calibrateMagnetometer()
         Mxyz[1] = (float)my * 1200 / 4096 - my_centre;
         Mxyz[2] = (float)mz * 1200 / 4096 - mz_centre;
 
+#ifdef DEBUG
         DEBUG_PORT.println("RAW - mx my mz");
         DEBUG_PORT.print(mx);
         DEBUG_PORT.print(" ");
@@ -872,6 +887,7 @@ void calibrateMagnetometer()
         DEBUG_PORT.print(Mxyz[1]);
         DEBUG_PORT.print(" ");
         DEBUG_PORT.println(Mxyz[2]);
+#endif
         delay(1000);
     }
 }
@@ -934,6 +950,8 @@ void saveMPU9250(MP_Data &data)
     data.ay = (float)ay / 4096;
     data.az = (float)az / 4096;
 
+    data.aAmp = sqrtf(data.ax * data.ax + data.ay * data.ay + data.az * data.az);
+
     data.gx = (float)gx * 500 / 32768;
     data.gy = (float)gy * 500 / 32768;
     data.gz = (float)gz * 500 / 32768;
@@ -947,30 +965,13 @@ void saveMPU9250(MP_Data &data)
     heading = 180 * atan2(c_my, c_mx) / PI;
     if (heading < 0)
         heading += 360;
-    
-    debugInfo("HEADING: ", false);
-    DEBUG_PORT.println(heading);
 
     data.magHeading = heading;
 
-    float pitch = asin(-ax);
-    float roll = asin(ay / cos(pitch));
-
-    float xh = c_mx * cos(pitch) + c_mz * sin(pitch);
-    float yh = c_mx * sin(roll) * sin(pitch) + c_my * cos(roll) - c_mz * sin(roll) * cos(pitch);
-    float zh = -c_mx * cos(roll) * sin(pitch) + c_my * sin(roll) + c_mz * cos(roll) * cos(pitch);
-
-
-    tiltHeading = 180 * atan2(yh, xh) / PI;
-
-    if (yh < 0)
-        tiltHeading += 360;
-
-    debugInfo("HEADING: ", false);
-    DEBUG_PORT.println(tiltHeading);
-    data.magTiltHeading = tiltHeading;
-
 #ifdef DEBUG
+    debugInfo("MAG HEADING: ", false);
+    DEBUG_PORT.println(heading);
+
     debugInfo("Get MPU9250 AGM data took: ");
     DEBUG_PORT.print(millis() - start);
     DEBUG_PORT.println(" ms");
