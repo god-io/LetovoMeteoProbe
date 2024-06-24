@@ -88,7 +88,7 @@ struct MP_Data
     uint8_t hours = 255;
     uint8_t minutes = 255;
     uint8_t seconds = 255;
-    uint16_t ms = 65535; // мс не передаются модулем TODO - заменить на секунды со старта МК
+    unsigned long millis = 4000000000UL; // мс не передаются модулем, заменены на секунды со старта МК
 
     float latitude = 0.0f;
     float longitude = 0.0f;

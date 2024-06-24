@@ -297,6 +297,8 @@ bool saveGPS(MP_Data &data)
         {
             debugInfo("0. GPS Status Valid");
 
+            data.millis = millis();
+
             // Проверим что данные даты валидны
             if (fix.valid.date)
             {
@@ -321,7 +323,6 @@ bool saveGPS(MP_Data &data)
                 data.hours = fix.dateTime.hours;
                 data.minutes = fix.dateTime.minutes;
                 data.seconds = fix.dateTime.seconds;
-                data.ms = fix.dateTime_ms();
 
                 debugInfo("2. GPS Time Valid");
             }
@@ -477,7 +478,7 @@ bool printToSD(const MP_Data &data)
     sd.print(',');
     sd.print(data.seconds);
     sd.print(',');
-    sd.print(data.ms);
+    sd.print(data.millis);
     sd.print(',');
     sd.print(data.latitude, 6);
     sd.print(',');
@@ -540,7 +541,7 @@ void printToConsole(const MP_Data &data)
     DEBUG_PORT.print(':');
     DEBUG_PORT.print(data.seconds);
     DEBUG_PORT.print('.');
-    DEBUG_PORT.print(data.ms);
+    DEBUG_PORT.print(data.millis);
     DEBUG_PORT.println();
 
     DEBUG_PORT.print("Lat/Lon/Alt: ");
