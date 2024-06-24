@@ -95,9 +95,6 @@ struct MP_Data
     float altitude = 0.0f;
     float speed = -1000.0f; // м/с
     float heading = -1000.0f;
-    float velocity_north = -1000.0f; // м/с
-    float velocity_east = -1000.0f;
-    float velocity_down = -1000.0f;
     float hdop = -1000.0f;
     float vdop = -1000.0f;
     uint8_t satellites_count = 255;

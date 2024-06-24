@@ -363,11 +363,7 @@ bool saveGPS(MP_Data &data)
             // скорости NED (зависят от heading и speed)
             if (fix.valid.velned)
             {
-                data.velocity_north = fix.velocity_north / 100.0f; // NED в целых см/с, делаем м/с
-                data.velocity_east = fix.velocity_east / 100.0f;
-                data.velocity_down = fix.velocity_down / 100.0f;
-
-                debugInfo("7. GPS VelNED Valid"); // NED в целых см/с, делаем м/с
+                debugInfo("7. GPS VelNED not available in this module"); // NED недоступен в модуле
             }
 
             // Horizontal dilution of precision
@@ -490,12 +486,6 @@ bool printToSD(const MP_Data &data)
     sd.print(',');
     sd.print(data.heading, 2);
     sd.print(',');
-    sd.print(data.velocity_north, 3);
-    sd.print(',');
-    sd.print(data.velocity_east, 3);
-    sd.print(',');
-    sd.print(data.velocity_down, 3);
-    sd.print(',');
     sd.print(data.hdop, 2);
     sd.print(',');
     sd.print(data.vdop, 2);
@@ -557,14 +547,6 @@ void printToConsole(const MP_Data &data)
     DEBUG_PORT.print(" m/s, ");
     DEBUG_PORT.print(data.heading, 2);
     DEBUG_PORT.println(" grad");
-
-    DEBUG_PORT.println("Velocity N/E/D: ");
-    DEBUG_PORT.print(data.velocity_north, 3);
-    DEBUG_PORT.print(',');
-    DEBUG_PORT.print(data.velocity_east, 3);
-    DEBUG_PORT.print(',');
-    DEBUG_PORT.print(data.velocity_down, 3);
-    DEBUG_PORT.println(" m/s");
 
     DEBUG_PORT.print("HDOP/VDOP: ");
     DEBUG_PORT.print(data.hdop, 2);
@@ -639,8 +621,8 @@ void printHeaderToSD()
         debugInfo("Print SD header");
 
         sd.println(F("------------"));
-        sd.print(F("year,month,date,hours,minutes,seconds,ms,"));
-        sd.print(F("latitude,longitude,altitude,speed,heading,V_N,V_E,V_D,HDOP,VDOP,satellites,"));
+        sd.print(F("year,month,date,hours,minutes,seconds,millis,"));
+        sd.print(F("latitude,longitude,altitude,speed,heading,HDOP,VDOP,satellites,"));
         sd.print(F("in_temp,out_temp,sht2x_temp,humidity,pressure,"));
         sd.print(F("ax,ay,az,aAmp,gx,gy,gz,magHeading"));
 
