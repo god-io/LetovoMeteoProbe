@@ -296,6 +296,10 @@ bool saveGPS(MP_Data &data)
         if (fix.valid.status) // Если статус захвата в норме, выполняем обработку
         {
             debugInfo("0. GPS Status Valid");
+            if (fix.status == fix.STATUS_STD)
+                debugInfo("0. GPS Fixed ");
+            else
+                debugInfo("0. GPS NOT FIXED");
 
             data.millis = millis();
 
