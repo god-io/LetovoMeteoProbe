@@ -496,15 +496,31 @@ bool printToSD(const MP_Data &data)
     sd.print(',');
     sd.print(data.satellites_count);
     sd.print(',');
-    sd.print(data.internal_temp, 1);
+    sd.print(data.internal_temp, 2);
     sd.print(',');
-    sd.print(data.external_temp, 1);
+    sd.print(data.external_temp, 2);
     sd.print(',');
-    sd.print(data.sht2x_temp, 1);
+    sd.print(data.sht2x_temp, 2);
     sd.print(',');
-    sd.print(data.humidity, 1);
+    sd.print(data.humidity, 2);
     sd.print(',');
-    sd.print(data.pressure, 3);
+    sd.print(data.pressure, 2);
+    sd.print(',');
+    sd.print(data.ax, 3);
+    sd.print(',');
+    sd.print(data.ay, 3);
+    sd.print(',');
+    sd.print(data.az, 3);
+    sd.print(',');
+    sd.print(data.aAmp, 3);
+    sd.print(',');
+    sd.print(data.gx, 3);
+    sd.print(',');
+    sd.print(data.gy, 3);
+    sd.print(',');
+    sd.print(data.gz, 3);
+    sd.print(',');
+    sd.print(data.magHeading, 3);
 
     sd.println();
     sd.flush(); // Обязательно сброс буферов!
@@ -534,7 +550,7 @@ void printToConsole(const MP_Data &data)
     DEBUG_PORT.print(data.minutes);
     DEBUG_PORT.print(':');
     DEBUG_PORT.print(data.seconds);
-    DEBUG_PORT.print('.');
+    DEBUG_PORT.print(',');
     DEBUG_PORT.print(data.millis);
     DEBUG_PORT.println();
 
@@ -563,23 +579,23 @@ void printToConsole(const MP_Data &data)
     DEBUG_PORT.println();
 
     DEBUG_PORT.print("Internal Temp: ");
-    DEBUG_PORT.print(data.internal_temp, 1);
+    DEBUG_PORT.print(data.internal_temp, 2);
     DEBUG_PORT.println(" C");
 
     DEBUG_PORT.print("External Temp: ");
-    DEBUG_PORT.print(data.external_temp, 1);
+    DEBUG_PORT.print(data.external_temp, 2);
     DEBUG_PORT.println(" C");
 
     DEBUG_PORT.print("SHT Internal Temp: ");
-    DEBUG_PORT.print(data.sht2x_temp, 1);
+    DEBUG_PORT.print(data.sht2x_temp, 2);
     DEBUG_PORT.println(" C");
 
     DEBUG_PORT.print("Humidity: ");
-    DEBUG_PORT.print(data.humidity, 1);
+    DEBUG_PORT.print(data.humidity, 2);
     DEBUG_PORT.println(" rel. percent");
 
     DEBUG_PORT.print("Pressure: ");
-    DEBUG_PORT.print(data.pressure, 3);
+    DEBUG_PORT.print(data.pressure, 2);
     DEBUG_PORT.println(" Pa");
 
     DEBUG_PORT.print("Ax: ");
