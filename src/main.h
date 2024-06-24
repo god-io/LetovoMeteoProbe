@@ -14,6 +14,8 @@
 #include <Wire.h>
 // Библиотека для работы с датчиком давления BMP280
 #include <Adafruit_BMP280.h>
+// Библиотека для работы с датчиком температуры/влажности SHT2x
+#include <SHT2x.h>
 
 // Библиотека для работы с шиной OneWire
 #include <OneWire.h>
@@ -62,6 +64,7 @@
 #define SUCCESS_DS18B20_PIN (32)
 #define SUCCESS_MPU9250_PIN (33)
 #define SUCCESS_SD_PIN (34)
+#define SUCCESS_SHT2X_PIN (35)
 
 // Адрес ячейки EEPROM для хранения данных о номере блока
 #define BLACKBOX_COUNT_EEPROM_ADDRESS (4050)
@@ -101,6 +104,7 @@ struct MP_Data
 
     float internal_temp = -1000.0f; // C
     float external_temp = -1000.0f;
+    float sht2x_temp = -1000.0f; 
     float humidity = -1000.0f; // отн. проценты
     float pressure = -1000.0f; // Па
 
@@ -183,6 +187,8 @@ void calibrateMagnetometer();
 void setAccelGyroMagOffsets();
 // Сохраняет данные с датчика MPU9250 в структуру
 void saveMPU9250(MP_Data &data);
+// Сохраняет данные с датчика SHT-21 в структуру
+void saveSHT2x(MP_Data &data);
 // Устанавливает пины статуса датчиков
 void setStatusLeds();
 

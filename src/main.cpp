@@ -21,6 +21,8 @@ File sd;
 MPU9250 imu;
 // Экземпляр класса I2Cdev для работы с шиной i2c
 I2Cdev I2C_M;
+// Экземпляр класса SHT2x для работы с датчиком SHT-21
+SHT2x sht2x;
 
 // Таймер для записи блекбокса в EEPROM
 unsigned long eepromBlackboxTimer = 0;
@@ -172,6 +174,37 @@ void setup()
     debugInfo("Read and set AGM offsets...");
     setAccelGyroMagOffsets();
 
+    Wire.begin();
+
+    sht2x.begin(); // Надо обязательно удостовериться что перед этой операцией вызвана Wire.begin();
+
+    if (sht2x.isConnected())
+    {
+        debugInfo("SHT-21 Connected");
+        debugInfo("Error and status: ");
+#ifdef DEBUG
+
+        sht2x.reset();
+        debugInfo("Temp and Humidity");
+        sht2x.read();
+
+        DEBUG_PORT.println(sht2x.getTemperature());
+
+        DEBUG_PORT.println(sht2x.getHumidity());
+
+#endif
+
+        LED_ON(SUCCESS_SHT2X_PIN);
+    }
+    else
+    {
+        debugInfo("ERROR - Initialization of SHT2X FAILED!");
+        while (true) // Не работает, уходим в зависон
+        {
+            ;
+        }
+    }
+
     debugInfo("Initializing SD card...");
 
     // Проверяем что карта памяти может работать
@@ -223,6 +256,7 @@ void loop()
         saveBMP280(meteodata);
         saveDS18B20(meteodata);
         saveMPU9250(meteodata);
+        saveSHT2x(meteodata);
 
         printToSD(meteodata);
 
@@ -471,6 +505,8 @@ bool printToSD(const MP_Data &data)
     sd.print(',');
     sd.print(data.external_temp, 1);
     sd.print(',');
+    sd.print(data.sht2x_temp, 1);
+    sd.print(',');
     sd.print(data.humidity, 1);
     sd.print(',');
     sd.print(data.pressure, 3);
@@ -547,9 +583,13 @@ void printToConsole(const MP_Data &data)
     DEBUG_PORT.print(data.external_temp, 1);
     DEBUG_PORT.println(" C");
 
+    DEBUG_PORT.print("SHT Internal Temp: ");
+    DEBUG_PORT.print(data.sht2x_temp, 1);
+    DEBUG_PORT.println(" C");
+
     DEBUG_PORT.print("Humidity: ");
     DEBUG_PORT.print(data.humidity, 1);
-    DEBUG_PORT.println("rel. percent");
+    DEBUG_PORT.println(" rel. percent");
 
     DEBUG_PORT.print("Pressure: ");
     DEBUG_PORT.print(data.pressure, 3);
@@ -600,7 +640,7 @@ void printHeaderToSD()
         sd.println(F("------------"));
         sd.print(F("year,month,date,hours,minutes,seconds,ms,"));
         sd.print(F("latitude,longitude,altitude,speed,heading,V_N,V_E,V_D,HDOP,VDOP,satellites,"));
-        sd.print(F("in_temp,out_temp,humidity,pressure,"));
+        sd.print(F("in_temp,out_temp,sht2x_temp,humidity,pressure,"));
         sd.print(F("ax,ay,az,aAmp,gx,gy,gz,magHeading"));
 
         sd.println();
@@ -1026,6 +1066,7 @@ void setStatusLeds()
     pinMode(SUCCESS_DS18B20_PIN, OUTPUT);
     pinMode(SUCCESS_MPU9250_PIN, OUTPUT);
     pinMode(SUCCESS_SD_PIN, OUTPUT);
+    pinMode(SUCCESS_SHT2X_PIN, OUTPUT);
 
     // Выключаем зелёные
     LED_OFF(SUCCESS_POWER_PIN);
@@ -1034,6 +1075,7 @@ void setStatusLeds()
     LED_OFF(SUCCESS_DS18B20_PIN);
     LED_OFF(SUCCESS_MPU9250_PIN);
     LED_OFF(SUCCESS_SD_PIN);
+    LED_OFF(SUCCESS_SHT2X_PIN);
 }
 
 void eepromBlackboxReset()
@@ -1047,4 +1089,35 @@ void eepromBlackboxReset()
         debugInfo(".");
         delay(1000);
     }
+}
+
+void saveSHT2x(MP_Data &data)
+{
+#ifdef DEBUG
+    unsigned long start = millis();
+#endif
+
+    //  Датчик тут?
+    if (sht2x.isConnected())
+    {
+        debugInfo("Reads SHT-21 inside temperature and humidity");
+        sht2x.getError(); // Сброс ошибок
+
+        // При ошибках сырые данные = 0
+        if (sht2x.getRawTemperature() != 0)
+        {
+            data.sht2x_temp = sht2x.getTemperature();
+        }
+
+        if (sht2x.getRawHumidity() != 0)
+        {
+            data.humidity = sht2x.getHumidity();
+        }
+    }
+
+#ifdef DEBUG
+    DEBUG_PORT.print("Save SHT-21 took: ");
+    DEBUG_PORT.print(millis() - start);
+    DEBUG_PORT.println(" ms");
+#endif
 }
