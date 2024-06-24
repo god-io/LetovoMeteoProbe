@@ -56,6 +56,8 @@
 #define CS_PIN (7)
 // Пин для внешнего датчика температуры DS18B20
 #define DS18B20_PIN (2)
+// Пин для аналогового датчика УФ
+#define UV_SENSOR_PIN (A0)
 
 // Пины для статусных светодиодов. На меге много портов
 #define SUCCESS_POWER_PIN (29)
@@ -115,6 +117,8 @@ struct MP_Data
     float gz;
 
     float magHeading;
+
+    int analogUV = -32000;
 };
 
 // Заставить компилятор максимально упаковать данные структуры в памяти без пробелов. Влияет на sizeof()
@@ -186,6 +190,8 @@ void setAccelGyroMagOffsets();
 void saveMPU9250(MP_Data &data);
 // Сохраняет данные с датчика SHT-21 в структуру
 void saveSHT2x(MP_Data &data);
+// Сохраняет данные с аналогового датчика УФ
+void saveAnalogUV(MP_Data &data);
 // Устанавливает пины статуса датчиков
 void setStatusLeds();
 

@@ -257,6 +257,7 @@ void loop()
         saveDS18B20(meteodata);
         saveMPU9250(meteodata);
         saveSHT2x(meteodata);
+        saveAnalogUV(meteodata);
 
         printToSD(meteodata);
 
@@ -521,6 +522,8 @@ bool printToSD(const MP_Data &data)
     sd.print(data.gz, 3);
     sd.print(',');
     sd.print(data.magHeading, 3);
+    sd.print(',');
+    sd.print(data.analogUV);
 
     sd.println();
     sd.flush(); // Обязательно сброс буферов!
@@ -630,6 +633,10 @@ void printToConsole(const MP_Data &data)
     DEBUG_PORT.print(data.magHeading, 3);
     DEBUG_PORT.println(" ");
 
+    DEBUG_PORT.print("UV Level: ");
+    DEBUG_PORT.print(data.analogUV);
+    DEBUG_PORT.println(" ");
+
     DEBUG_PORT.println();
     DEBUG_PORT.flush();
 }
@@ -644,7 +651,7 @@ void printHeaderToSD()
         sd.print(F("year,month,date,hours,minutes,seconds,millis,"));
         sd.print(F("latitude,longitude,altitude,speed,heading,HDOP,VDOP,satellites,"));
         sd.print(F("in_temp,out_temp,sht2x_temp,humidity,pressure,"));
-        sd.print(F("ax,ay,az,aAmp,gx,gy,gz,magHeading"));
+        sd.print(F("ax,ay,az,aAmp,gx,gy,gz,magHeading,UV"));
 
         sd.println();
         sd.flush();
@@ -1125,6 +1132,22 @@ void saveSHT2x(MP_Data &data)
 
 #ifdef DEBUG
     DEBUG_PORT.print("Save SHT-21 took: ");
+    DEBUG_PORT.print(millis() - start);
+    DEBUG_PORT.println(" ms");
+#endif
+}
+
+void saveAnalogUV(MP_Data &data)
+{
+#ifdef DEBUG
+    unsigned long start = millis();
+#endif
+
+    // Нет возможности проверить что сенсор УФ доступен, поскольку это просто напряжение
+    data.analogUV = analogRead(UV_SENSOR_PIN); // 0 - 1023
+
+#ifdef DEBUG
+    DEBUG_PORT.print("Save Analog UV took: ");
     DEBUG_PORT.print(millis() - start);
     DEBUG_PORT.println(" ms");
 #endif
