@@ -1027,9 +1027,9 @@ void saveMPU9250(MP_Data &data)
     // Сырые данные с датчика
     int16_t ax, ay, az, gx, gy, gz, mx, my, mz;
     // Обработанные данные с магнетометра
-    float c_mx, c_my, c_mz;
-    // Данные указания на север прямо и под наклоном
-    float heading, tiltHeading;
+    float c_mx, c_my;
+    // Данные указания на север прямо
+    float heading;
     imu.getMotion9(&ax, &ay, &az, &gx, &gy, &gz, &mx, &my, &mz);
 
     // Преобразуем данные и записываем в структуру
@@ -1047,7 +1047,7 @@ void saveMPU9250(MP_Data &data)
     // Обрабатываем и корректируем данные магнитометра с помощью оффсетов
     c_mx = (float)mx * 1200 / 4096 - magCal.mx;
     c_my = (float)my * 1200 / 4096 - magCal.my;
-    c_mz = (float)mz * 1200 / 4096 - magCal.mz;
+    // c_mz = (float)mz * 1200 / 4096 - magCal.mz;
 
     // Направления взяты из примеров
     heading = 180 * atan2(c_my, c_mx) / PI;
