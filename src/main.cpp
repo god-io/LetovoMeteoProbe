@@ -1101,17 +1101,22 @@ void saveSHT2x(MP_Data &data)
     if (sht2x.isConnected())
     {
         debugInfo("Reads SHT-21 inside temperature and humidity");
-        sht2x.getError(); // Сброс ошибок
+        sht2x.read(); // Запрос на чтение данных
+        if (sht2x.getError() != 0)
+        {
+            sht2x.reset(); // Сброс при ошибках
+        }
 
-        // При ошибках сырые данные = 0
+        sht2x.read();
+        // При ошибках сырые данные = 0, игнорим их
         if (sht2x.getRawTemperature() != 0)
         {
-            data.sht2x_temp = sht2x.getTemperature();
+            data.sht2x_temp = sht2x.getTemperature(); // Сохраняем данные
         }
 
         if (sht2x.getRawHumidity() != 0)
         {
-            data.humidity = sht2x.getHumidity();
+            data.humidity = sht2x.getHumidity(); // Сохраняем данные
         }
     }
 
