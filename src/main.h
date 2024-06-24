@@ -59,6 +59,10 @@
 // Пин для аналогового датчика УФ
 #define UV_SENSOR_PIN (A0)
 
+// Пин для выхода реле/ключа
+#define RELAY_1_PIN (41)
+#define RELAY_2_PIN (42)
+
 // Пины для статусных светодиодов. На меге много портов
 #define SUCCESS_POWER_PIN (29)
 #define SUCCESS_GPS_PIN (30)
@@ -79,6 +83,11 @@
 
 // Константа для пересчёта км/ч в м/с
 #define KMH_TO_MS (1000.0f / 3600)
+
+// Раз в 5 минут включать камеры
+#define RELAY_SWITCHON_TIMEOUT_S (300)
+// через минуту выключать
+#define RELAY_SWITCHOFF_TIMEOUT_S (60)
 
 // Структура для хранения строки данных Meteorological Probe Data
 // Дефолтные данные неверные изначально. Они заменяются реальными только если валидны
@@ -192,11 +201,15 @@ void saveMPU9250(MP_Data &data);
 void saveSHT2x(MP_Data &data);
 // Сохраняет данные с аналогового датчика УФ
 void saveAnalogUV(MP_Data &data);
-// Устанавливает пины статуса датчиков
-void setStatusLeds();
+// Устанавливает режимы пинов и обнуляет всё
+void resetPinModes();
+
 
 // Сбрасывает счётчик записанных блоков в EEPROM блекбоксе
 void eepromBlackboxReset();
+
+// Включает и выключает реле
+void relay();
 
 // Макросы, прикидывающиеся функциями. Зажигает и тушит светодиод
 #define LED_ON(pin) (digitalWrite((pin), (1)))

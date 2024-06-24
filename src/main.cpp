@@ -26,6 +26,12 @@ SHT2x sht2x;
 
 // Таймер для записи блекбокса в EEPROM
 unsigned long eepromBlackboxTimer = 0;
+// Таймеры для работы реле
+unsigned long relayOnTimer = 0;
+unsigned long relayOffTimer = 0;
+// Признак включения реле
+bool relayON = false;
+
 // Экземпляр структуры для хранения параметров калибровки магнетометра
 magCalibration magCal;
 
@@ -55,8 +61,8 @@ void setup()
     // Сброс счётчика хранения блекбокса в EEPROM
     eepromBlackboxReset();
 #endif
-    // Выключаем панель статуса
-    setStatusLeds();
+    // Выключаем панель статуса и устанавливаем пины
+    resetPinModes();
 
     LED_ON(SUCCESS_POWER_PIN);
 
@@ -266,6 +272,8 @@ void loop()
             // Сохраним нужные данные из meteodata в структуру blackbox
             saveDataToBlackbox(meteodata, eepromBlackboxTimer);
         }
+
+        relay();
 
 #ifdef DEBUG
         printToConsole(meteodata);
@@ -1067,7 +1075,7 @@ void saveMPU9250(MP_Data &data)
 #endif
 }
 
-void setStatusLeds()
+void resetPinModes()
 {
     // Режим пинов - вывод
     pinMode(SUCCESS_POWER_PIN, OUTPUT);
@@ -1078,7 +1086,10 @@ void setStatusLeds()
     pinMode(SUCCESS_SD_PIN, OUTPUT);
     pinMode(SUCCESS_SHT2X_PIN, OUTPUT);
 
-    // Выключаем зелёные
+    pinMode(RELAY_1_PIN, OUTPUT);
+    pinMode(RELAY_2_PIN, OUTPUT);
+
+     // Выключаем зелёные
     LED_OFF(SUCCESS_POWER_PIN);
     LED_OFF(SUCCESS_GPS_PIN);
     LED_OFF(SUCCESS_BMP280_PIN);
@@ -1086,7 +1097,12 @@ void setStatusLeds()
     LED_OFF(SUCCESS_MPU9250_PIN);
     LED_OFF(SUCCESS_SD_PIN);
     LED_OFF(SUCCESS_SHT2X_PIN);
+
+    // Выключить реле
+    LED_OFF(RELAY_1_PIN);
+    LED_OFF(RELAY_2_PIN);
 }
+
 
 void eepromBlackboxReset()
 {
@@ -1151,4 +1167,30 @@ void saveAnalogUV(MP_Data &data)
     DEBUG_PORT.print(millis() - start);
     DEBUG_PORT.println(" ms");
 #endif
+}
+
+void relay()
+{
+    // Включаем реле по интервалу
+    if (((millis() - relayOnTimer) > RELAY_SWITCHON_TIMEOUT_S * 1000UL) && !relayON)
+    {
+        debugInfo(F("Switch ON relays"));
+
+        relayOffTimer = millis();
+        relayON = true;
+
+        LED_ON(RELAY_1_PIN);
+        LED_ON(RELAY_2_PIN);
+    }
+
+    // Выключаем реле по интервалу
+    if (((millis() - relayOffTimer) > RELAY_SWITCHOFF_TIMEOUT_S * 1000UL) && relayON)
+    {   
+        debugInfo(F("Switch OFF relays"));
+
+        relayOnTimer = millis();
+        relayON = false;
+        LED_OFF(RELAY_1_PIN);
+        LED_OFF(RELAY_2_PIN);
+    }
 }
