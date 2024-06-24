@@ -60,15 +60,15 @@ void setup()
 
     LED_ON(SUCCESS_POWER_PIN);
 
-    debugInfo("Initialization process started...");
-    debugInfo("Start GPS port on Serial1 at 9600 bps");
+    debugInfo(F("Initialization process started..."));
+    debugInfo(F("Start GPS port on Serial1 at 9600 bps"));
     // Начать работу на порту Serial1 для GPS-модуля
     gpsPort.begin(9600);
 
-    debugInfo("Check BMP280 pressure sensor");
+    debugInfo(F("Check BMP280 pressure sensor"));
     if (bmp280.begin(BMP280_ADDRESS_ALT))
     {
-        debugInfo("BMP280 sensor present, let's configure");
+        debugInfo(F("BMP280 sensor present, let's configure"));
         bmp280.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
                            Adafruit_BMP280::SAMPLING_X16,    /* Temp. oversampling */
                            Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
@@ -79,7 +79,7 @@ void setup()
     }
     else
     {
-        debugInfo("ERROR - BMP280 not present!");
+        debugInfo(F("ERROR - BMP280 not present!"));
         while (true)
         {
             ;
@@ -87,11 +87,11 @@ void setup()
     }
 
     // Поиск устройств на шине oneWire
-    debugInfo("Locating oneWire devices...");
+    debugInfo(F("Locating oneWire devices..."));
     outsideTemperatureSensor.begin();
     if (outsideTemperatureSensor.getDeviceCount() == 0)
     {
-        debugInfo("ERROR - cannot find DS18B20 temp sensor!");
+        debugInfo(F("ERROR - cannot find DS18B20 temp sensor!"));
         while (true)
         {
             ;
@@ -100,15 +100,15 @@ void setup()
     else
     {
         // датчик может работать на паразитном питании (в пин данных), но его показания тогда не такие верные
-        debugInfo("Found oneWire sensor (DS18B20)");
+        debugInfo(F("Found oneWire sensor (DS18B20)"));
 
         if (outsideTemperatureSensor.isParasitePowerMode())
         {
-            debugInfo("oneWire bus requires parasite power");
+            debugInfo(F("oneWire bus requires parasite power"));
         }
         else
         {
-            debugInfo("oneWire bus doesnt require parasite power");
+            debugInfo(F("oneWire bus doesnt require parasite power"));
         }
 
         // Must be called before search()
@@ -116,14 +116,14 @@ void setup()
         // assigns the first address found to insideThermometer
         if (!oneWire.search(outsideThermometerAddress))
         {
-            debugInfo("ERROR - Unable to find address for oneWire Device");
+            debugInfo(F("ERROR - Unable to find address for oneWire Device"));
             while (true)
             {
                 ;
             }
         }
 
-        debugInfo("Found oneWire device address (DS18B20)");
+        debugInfo(F("Found oneWire device address (DS18B20)"));
 
         // Разрешение АЦП датчика. До 12 бит (4096 градации), но медленно получает данные (750 мс!)
         outsideTemperatureSensor.setResolution(outsideThermometerAddress, 10);
@@ -132,24 +132,24 @@ void setup()
     }
 
     // Акселерометр/гироскоп/магнетометр
-    debugInfo("Check MPU9250 IMU and magnetometer");
+    debugInfo(F("Check MPU9250 IMU and magnetometer"));
     Wire.begin(); // МБ не надо?
 
-    debugInfo("IMU initialize");
+    debugInfo(F("IMU initialize"));
     imu.initialize();
 
-    debugInfo("Testing device connections...");
+    debugInfo(F("Testing device connections..."));
     if (!imu.testConnection())
     {
-        debugInfo("ERROR - MPU9250 connection failed!");
+        debugInfo(F("ERROR - MPU9250 connection failed!"));
         while (true)
         {
             ;
         }
     }
 
-    debugInfo("MPU9250 connection successful");
-    debugInfo("Set Accel and Gyro ranges");
+    debugInfo(F("MPU9250 connection successful"));
+    debugInfo(F("Set Accel and Gyro ranges"));
     // Установка диапазона акселерометра/гироскопа
     imu.setFullScaleAccelRange(MPU9250_ACCEL_FS_8); // 8G
     imu.setFullScaleGyroRange(MPU9250_GYRO_FS_500); // 500 град/с
@@ -171,7 +171,7 @@ void setup()
     calibrateMagnetometer();
 #endif
 
-    debugInfo("Read and set AGM offsets...");
+    debugInfo(F("Read and set AGM offsets..."));
     setAccelGyroMagOffsets();
 
     Wire.begin();
@@ -180,12 +180,12 @@ void setup()
 
     if (sht2x.isConnected())
     {
-        debugInfo("SHT-21 Connected");
-        debugInfo("Error and status: ");
+        debugInfo(F("SHT-21 Connected"));
+        debugInfo(F("Error and status: "));
 #ifdef DEBUG
 
         sht2x.reset();
-        debugInfo("Temp and Humidity");
+        debugInfo(F("Temp and Humidity"));
         sht2x.read();
 
         DEBUG_PORT.println(sht2x.getTemperature());
@@ -198,33 +198,33 @@ void setup()
     }
     else
     {
-        debugInfo("ERROR - Initialization of SHT2X FAILED!");
+        debugInfo(F("ERROR - Initialization of SHT2X FAILED!"));
         while (true) // Не работает, уходим в зависон
         {
             ;
         }
     }
 
-    debugInfo("Initializing SD card...");
+    debugInfo(F("Initializing SD card..."));
 
     // Проверяем что карта памяти может работать
     if (!SD.begin(CS_PIN))
     {
-        debugInfo("ERROR - Initialization of SD card FAILED! Check wiring and format SD to FAT32");
+        debugInfo(F("ERROR - Initialization of SD card FAILED! Check wiring and format SD to FAT32"));
         while (true) // Не работает, уходим в зависон
         {
             ;
         }
     }
 
-    debugInfo("SD Card OK, try to open file...");
+    debugInfo(F("SD Card OK, try to open file..."));
 
     // Пробуем открыть файл для записи (если он есть, выполнится append, если нет, создастся)
     sd = SD.open("meteolog.txt", FILE_WRITE);
     if (sd)
     {
 
-        debugInfo("File from SD Card opened SUCCESSFULLY!");
+        debugInfo(F("File from SD Card opened SUCCESSFULLY!"));
 
         printHeaderToSD(); // Печатаем заголовок в файл
 
@@ -232,7 +232,7 @@ void setup()
     }
     else
     {
-        debugInfo("ERROR - FAILED to open file from SD Card!");
+        debugInfo(F("ERROR - FAILED to open file from SD Card!"));
 
         while (true) // Не работает файл, уходим в зависон
         {
@@ -292,15 +292,15 @@ bool saveGPS(MP_Data &data)
         // Можно прочесть данные в облегчённую структуру gps_fix
         const gps_fix fix = gps.read();
 
-        debugInfo("GPS Fix read attempt");
+        debugInfo(F("GPS Fix read attempt"));
 
         if (fix.valid.status) // Если статус захвата в норме, выполняем обработку
         {
-            debugInfo("0. GPS Status Valid");
+            debugInfo(F("0. GPS Status Valid"));
             if (fix.status == fix.STATUS_STD)
-                debugInfo("0. GPS Fixed ");
+                debugInfo(F("0. GPS Fixed "));
             else
-                debugInfo("0. GPS NOT FIXED");
+                debugInfo(F("0. GPS NOT FIXED"));
 
             data.millis = millis();
 
@@ -312,7 +312,7 @@ bool saveGPS(MP_Data &data)
                 data.month = fix.dateTime.month;
                 data.date = fix.dateTime.date;
 
-                debugInfo("1. GPS Date Valid");
+                debugInfo(F("1. GPS Date Valid"));
             }
 
             /*
@@ -329,7 +329,7 @@ bool saveGPS(MP_Data &data)
                 data.minutes = fix.dateTime.minutes;
                 data.seconds = fix.dateTime.seconds;
 
-                debugInfo("2. GPS Time Valid");
+                debugInfo(F("2. GPS Time Valid"));
             }
 
             // Проверяем локацию (широта и долгота)
@@ -338,7 +338,7 @@ bool saveGPS(MP_Data &data)
                 data.latitude = fix.latitude();
                 data.longitude = fix.longitude();
 
-                debugInfo("3. GPS Position Valid");
+                debugInfo(F("3. GPS Position Valid"));
             }
 
             // Проверяем высоту, она отдельна от локации
@@ -346,7 +346,7 @@ bool saveGPS(MP_Data &data)
             {
                 data.altitude = fix.altitude();
 
-                debugInfo("4. GPS Altitude Valid");
+                debugInfo(F("4. GPS Altitude Valid"));
             }
 
             // Скорость полёта
@@ -354,7 +354,7 @@ bool saveGPS(MP_Data &data)
             {
                 data.speed = fix.speed_kph() * KMH_TO_MS;
 
-                debugInfo("5. GPS Speed Valid");
+                debugInfo(F("5. GPS Speed Valid"));
             }
 
             // Направление движения в градусах
@@ -362,13 +362,13 @@ bool saveGPS(MP_Data &data)
             {
                 data.heading = fix.heading();
 
-                debugInfo("6. GPS Heading Valid");
+                debugInfo(F("6. GPS Heading Valid"));
             }
 
             // скорости NED (зависят от heading и speed)
             if (fix.valid.velned)
             {
-                debugInfo("7. GPS VelNED not available in this module"); // NED недоступен в модуле
+                debugInfo(F("7. GPS VelNED not available in this module")); // NED недоступен в модуле
             }
 
             // Horizontal dilution of precision
@@ -376,7 +376,7 @@ bool saveGPS(MP_Data &data)
             {
                 data.hdop = fix.hdop / 1000.0f; // hdop в целых тысячных долях, поэтому hdop 8.5 выглядит как  8500
 
-                debugInfo("8. GPS HDOP Valid");
+                debugInfo(F("8. GPS HDOP Valid"));
             }
 
             // Vertical dilution of precision
@@ -384,7 +384,7 @@ bool saveGPS(MP_Data &data)
             {
                 data.vdop = fix.vdop / 1000.0f; // vdop в целых тысячных долях, поэтому hdop 8.5 выглядит как  8500
 
-                debugInfo("9. GPS VDOP Valid");
+                debugInfo(F("9. GPS VDOP Valid"));
             }
 
             // Number of satellites used to calculate a fix.
@@ -392,12 +392,12 @@ bool saveGPS(MP_Data &data)
             {
                 data.satellites_count = fix.satellites;
 
-                debugInfo("10. GPS Satellites Valid");
+                debugInfo(F("10. GPS Satellites Valid"));
             }
 
 #ifdef DEBUG
             // Сколько времени заняло получение данных
-            DEBUG_PORT.print("GPS save loop took: ");
+            DEBUG_PORT.print(F("GPS save loop took: "));
             DEBUG_PORT.print(millis() - start);
             DEBUG_PORT.println(" ms");
 #endif
@@ -406,7 +406,7 @@ bool saveGPS(MP_Data &data)
         }
         else
         {
-            debugInfo("0. GPS is not fixed now!");
+            debugInfo(F("0. GPS is not fixed now!"));
         }
     }
 
@@ -419,12 +419,12 @@ void saveBMP280(MP_Data &data)
     unsigned long start = millis();
 #endif
 
-    debugInfo("Reads BMP280 temperature and pressure");
+    debugInfo(F("Reads BMP280 temperature and pressure"));
     data.internal_temp = bmp280.readTemperature();
     data.pressure = bmp280.readPressure();
 
 #ifdef DEBUG
-    DEBUG_PORT.print("Save BMP280 took: ");
+    DEBUG_PORT.print(F("Save BMP280 took: "));
     DEBUG_PORT.print(millis() - start);
     DEBUG_PORT.println(" ms");
 #endif
@@ -436,19 +436,19 @@ void saveDS18B20(MP_Data &data)
     unsigned long start = millis();
 #endif
 
-    debugInfo("Reads DS18B20 outside temperature");
+    debugInfo(F("Reads DS18B20 outside temperature"));
 
     outsideTemperatureSensor.requestTemperaturesByAddress(outsideThermometerAddress);
     float tempC = outsideTemperatureSensor.getTempC(outsideThermometerAddress);
     if (tempC == DEVICE_DISCONNECTED_C)
     {
-        debugInfo("ERROR - Could not read temperature data!");
+        debugInfo(F("ERROR - Could not read temperature data!"));
         return;
     }
     data.external_temp = tempC;
 
 #ifdef DEBUG
-    DEBUG_PORT.print("Save DS18B20 took: ");
+    DEBUG_PORT.print(F("Save DS18B20 took: "));
     DEBUG_PORT.print(millis() - start);
     DEBUG_PORT.println(" ms");
 #endif
@@ -461,11 +461,11 @@ bool printToSD(const MP_Data &data)
 #endif
     if (!sd)
     {
-        debugInfo("ERROR - cannot write to file!");
+        debugInfo(F("ERROR - cannot write to file!"));
         return false;
     }
 
-    debugInfo("*** Send data to SD ***");
+    debugInfo(F("*** Send data to SD ***"));
 
     sd.print(data.year);
     sd.print(',');
@@ -529,7 +529,7 @@ bool printToSD(const MP_Data &data)
     sd.flush(); // Обязательно сброс буферов!
 
 #ifdef DEBUG
-    DEBUG_PORT.print("Save to SD took: ");
+    DEBUG_PORT.print(F("Save to SD took: "));
     DEBUG_PORT.print(millis() - start);
     DEBUG_PORT.println(" ms");
 #endif
@@ -539,7 +539,7 @@ bool printToSD(const MP_Data &data)
 
 void printToConsole(const MP_Data &data)
 {
-    DEBUG_PORT.println("*** Send data to console ***");
+    DEBUG_PORT.println(F("*** Send data to console ***"));
 
     DEBUG_PORT.print("Date/Time: ");
     DEBUG_PORT.print(data.year);
@@ -645,7 +645,7 @@ void printHeaderToSD()
 {
     if (sd)
     {
-        debugInfo("Print SD header");
+        debugInfo(F("Print SD header"));
 
         sd.println(F("------------"));
         sd.print(F("year,month,date,hours,minutes,seconds,millis,"));
@@ -710,8 +710,8 @@ void calibrateAccelGyro()
 
     unsigned long start = millis();
 
-    debugInfo("Accel/Gyro Calibrating...");
-    debugInfo("Your MPU9250 should be placed in horizontal position, with package letters facing up");
+    debugInfo(F("Accel/Gyro Calibrating..."));
+    debugInfo(F("Your MPU9250 should be placed in horizontal position, with package letters facing up"));
 
     // Установка дефолтного диапазона акселерометра/гироскопа
     imu.setFullScaleAccelRange(MPU9250_ACCEL_FS_2); // 2G
@@ -719,7 +719,7 @@ void calibrateAccelGyro()
 
     // TODO: калибровка для 2/250, а использовать надо для 8/500. Что надо изменить, чтобы это работало?
 
-    debugInfo("Reset Accel and Gyro offsets");
+    debugInfo(F("Reset Accel and Gyro offsets"));
     // сбросить оффсеты
     imu.setXAccelOffset(0);
     imu.setYAccelOffset(0);
@@ -738,7 +738,7 @@ void calibrateAccelGyro()
 
     uint8_t calibrationIterations = 50;
 
-    debugInfo("Calibration start. It will take about 25 seconds");
+    debugInfo(F("Calibration start. It will take about 25 seconds"));
     for (byte n = 0; n < calibrationIterations; n++)
     { // 10 итераций калибровки
         for (byte j = 0; j < 6; j++)
@@ -790,7 +790,7 @@ void calibrateAccelGyro()
     }
 
 #ifdef DEBUG
-    debugInfo("Calibrated offsets are: ax, ay, az, gx, gy, gz");
+    debugInfo(F("Calibrated offsets are: ax, ay, az, gx, gy, gz"));
     for (byte k = 0; k < 6; k++)
     {
         DEBUG_PORT.print(offsets[k]);
@@ -798,19 +798,19 @@ void calibrateAccelGyro()
     }
 #endif
 
-    debugInfo("Save offsets to EEPROM");
+    debugInfo(F("Save offsets to EEPROM"));
     // запись в память. Массивы тоже можно! Запишется 6*4=24 байта
     EEPROM.put(CALIBRATION_ACCEL_GYRO_EEPROM_ADDRESS, offsets);
 
 #ifdef DEBUG
     DEBUG_PORT.println();
-    debugInfo("Accel/Gyro Calibration took: ");
+    debugInfo(F("Accel/Gyro Calibration took: "));
     DEBUG_PORT.print(millis() - start);
     DEBUG_PORT.println(" ms");
     DEBUG_PORT.flush();
 #endif
 
-    debugInfo("Infinite loop readings - check it:");
+    debugInfo(F("Infinite loop readings - check it:"));
     int16_t ax, ay, az, gx, gy, gz;
     // Бесконечно печатаем результаты измерений в консоль
     while (true)
@@ -839,7 +839,7 @@ void calibrateMagnetometer()
     // Код скомпилирован из примера
     unsigned long start = millis();
 
-    debugInfo("Magnetometer Calibrating...");
+    debugInfo(F("Magnetometer Calibrating..."));
 
     uint16_t calibrationIterations = 1500;
     uint8_t magBuffer[6];
@@ -867,7 +867,7 @@ void calibrateMagnetometer()
     I2C_M.writeByte(MPU9150_RA_MAG_ADDRESS, 0x0A, 0x01); // enable the magnetometer
     delay(10);
 
-    debugInfo("Your must to rotate magnetometer at any side for 20-30 s");
+    debugInfo(F("Your must to rotate magnetometer at any side for 20-30 s"));
     for (unsigned int i = 0; i < calibrationIterations; i++)
     {
         I2C_M.writeByte(MPU9250_DEFAULT_ADDRESS, MPU9250_RA_INT_PIN_CFG, 0x02); // set i2c bypass enable pin to true to access magnetometer
@@ -922,7 +922,7 @@ void calibrateMagnetometer()
 
 #ifdef DEBUG
     DEBUG_PORT.println();
-    debugInfo("Calibrated offsets are: mx, my, mz");
+    debugInfo(F("Calibrated offsets are: mx, my, mz"));
     DEBUG_PORT.print(mx_centre);
     DEBUG_PORT.print(',');
     DEBUG_PORT.print(my_centre);
@@ -932,18 +932,18 @@ void calibrateMagnetometer()
 
     magCalibration offsets = {mx_centre, my_centre, mz_centre};
     // запись в память. Массивы тоже можно! Запишется 3*4=12 байтd
-    debugInfo("Save calibration data to EEPROM");
+    debugInfo(F("Save calibration data to EEPROM"));
     EEPROM.put(CALIBRATION_MAGNETOMETER_EEPROM_ADDRESS, offsets);
 
 #ifdef DEBUG
-    debugInfo("Magnetometer Calibration took: ");
+    debugInfo(F("Magnetometer Calibration took: "));
 
     DEBUG_PORT.print(millis() - start);
     DEBUG_PORT.println(" ms");
     DEBUG_PORT.flush();
 #endif
 
-    debugInfo("Infinite loop readings - check it:");
+    debugInfo(F("Infinite loop readings - check it:"));
     // Бесконечно печатаем результаты измерений в консоль
     while (true)
     {
@@ -982,14 +982,14 @@ void calibrateMagnetometer()
 
 void setAccelGyroMagOffsets()
 {
-    debugInfo("Reading offsets from EEPROM");
+    debugInfo(F("Reading offsets from EEPROM"));
     // Храним оффсеты временно в массиве
     long agOffsets[6];
     // Читаем из EEPROM
     EEPROM.get(CALIBRATION_ACCEL_GYRO_EEPROM_ADDRESS, agOffsets);
     EEPROM.get(CALIBRATION_MAGNETOMETER_EEPROM_ADDRESS, magCal);
 
-    debugInfo("Set offsets for IMU...");
+    debugInfo(F("Set offsets for IMU..."));
     // Установка оффсетов IMU в память сенсора
     // Оффсеты магнитометра нельзя залить в память сенсора.
     imu.setXAccelOffset(agOffsets[0]);
@@ -1000,7 +1000,7 @@ void setAccelGyroMagOffsets()
     imu.setZGyroOffset(agOffsets[5]);
 
 #ifdef DEBUG
-    debugInfo("Offsets: ax,ay,az,gx,gy,gz");
+    debugInfo(F("Offsets: ax,ay,az,gx,gy,gz"));
     for (long o : agOffsets)
     {
         DEBUG_PORT.print(o);
@@ -1008,7 +1008,7 @@ void setAccelGyroMagOffsets()
     }
 
     DEBUG_PORT.println();
-    debugInfo("Offsets: mx,my,mz");
+    debugInfo(F("Offsets: mx,my,mz"));
     DEBUG_PORT.print(magCal.mx);
     DEBUG_PORT.print(',');
     DEBUG_PORT.print(magCal.my);
@@ -1060,7 +1060,7 @@ void saveMPU9250(MP_Data &data)
     debugInfo("MAG HEADING: ", false);
     DEBUG_PORT.println(heading);
 
-    debugInfo("Get MPU9250 AGM data took: ");
+    debugInfo(F("Get MPU9250 AGM data took: "));
     DEBUG_PORT.print(millis() - start);
     DEBUG_PORT.println(" ms");
     DEBUG_PORT.flush();
@@ -1110,7 +1110,7 @@ void saveSHT2x(MP_Data &data)
     //  Датчик тут?
     if (sht2x.isConnected())
     {
-        debugInfo("Reads SHT-21 inside temperature and humidity");
+        debugInfo(F("Reads SHT-21 inside temperature and humidity"));
         sht2x.read(); // Запрос на чтение данных
         if (sht2x.getError() != 0)
         {
@@ -1131,7 +1131,7 @@ void saveSHT2x(MP_Data &data)
     }
 
 #ifdef DEBUG
-    DEBUG_PORT.print("Save SHT-21 took: ");
+    DEBUG_PORT.print(F("Save SHT-21 took: "));
     DEBUG_PORT.print(millis() - start);
     DEBUG_PORT.println(" ms");
 #endif
@@ -1147,7 +1147,7 @@ void saveAnalogUV(MP_Data &data)
     data.analogUV = analogRead(UV_SENSOR_PIN); // 0 - 1023
 
 #ifdef DEBUG
-    DEBUG_PORT.print("Save Analog UV took: ");
+    DEBUG_PORT.print(F("Save Analog UV took: "));
     DEBUG_PORT.print(millis() - start);
     DEBUG_PORT.println(" ms");
 #endif
