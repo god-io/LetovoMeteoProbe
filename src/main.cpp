@@ -529,6 +529,12 @@ bool printToSD(const MP_Data &data)
     sd.print(',');
     sd.print(data.gz, 3);
     sd.print(',');
+    sd.print(data.mx, 3);
+    sd.print(',');
+    sd.print(data.my, 3);
+    sd.print(',');
+    sd.print(data.mz, 3);
+    sd.print(',');
     sd.print(data.magHeading, 3);
     sd.print(',');
     sd.print(data.analogUV);
@@ -637,6 +643,18 @@ void printToConsole(const MP_Data &data)
     DEBUG_PORT.print(data.gz, 3);
     DEBUG_PORT.println(" grad/s");
 
+    DEBUG_PORT.print("Mx: ");
+    DEBUG_PORT.print(data.mx, 3);
+    DEBUG_PORT.println(" ");
+
+    DEBUG_PORT.print("My: ");
+    DEBUG_PORT.print(data.my, 3);
+    DEBUG_PORT.println(" ");
+
+    DEBUG_PORT.print("Mz: ");
+    DEBUG_PORT.print(data.mz, 3);
+    DEBUG_PORT.println(" ");
+
     DEBUG_PORT.print("Heading: ");
     DEBUG_PORT.print(data.magHeading, 3);
     DEBUG_PORT.println(" ");
@@ -659,7 +677,7 @@ void printHeaderToSD()
         sd.print(F("year,month,date,hours,minutes,seconds,millis,"));
         sd.print(F("latitude,longitude,altitude,speed,heading,HDOP,VDOP,satellites,"));
         sd.print(F("in_temp,out_temp,sht2x_temp,humidity,pressure,"));
-        sd.print(F("ax,ay,az,aAmp,gx,gy,gz,magHeading,UV"));
+        sd.print(F("ax,ay,az,aAmp,gx,gy,gz,mx,my,mz,magHeading,UV"));
 
         sd.println();
         sd.flush();
@@ -1035,7 +1053,7 @@ void saveMPU9250(MP_Data &data)
     // Сырые данные с датчика
     int16_t ax, ay, az, gx, gy, gz, mx, my, mz;
     // Обработанные данные с магнетометра
-    float c_mx, c_my;
+    float c_mx, c_my, c_mz;
     // Данные указания на север прямо
     float heading;
     imu.getMotion9(&ax, &ay, &az, &gx, &gy, &gz, &mx, &my, &mz);
@@ -1055,7 +1073,11 @@ void saveMPU9250(MP_Data &data)
     // Обрабатываем и корректируем данные магнитометра с помощью оффсетов
     c_mx = (float)mx * 1200 / 4096 - magCal.mx;
     c_my = (float)my * 1200 / 4096 - magCal.my;
-    // c_mz = (float)mz * 1200 / 4096 - magCal.mz;
+    c_mz = (float)mz * 1200 / 4096 - magCal.mz;
+
+    data.mx = c_mx;
+    data.my = c_my;
+    data.mz = c_mz;
 
     // Направления взяты из примеров
     heading = 180 * atan2(c_my, c_mx) / PI;

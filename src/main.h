@@ -125,6 +125,10 @@ struct MP_Data
     float gy = -1000.0f;
     float gz = -1000.0f;
 
+    float mx = -1000.0f;
+    float my = -1000.0f;
+    float mz = -1000.0f;
+
     float magHeading = -1000.0f;  // градусы
 
     int analogUV = -32000;  // 0 - 1023
