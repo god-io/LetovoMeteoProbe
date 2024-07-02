@@ -23,6 +23,8 @@ MPU9250 imu;
 I2Cdev I2C_M;
 // Экземпляр класса SHT2x для работы с датчиком SHT-21
 SHT2x sht2x;
+// Экземпляр класса GP2YDustSensor для работы с датчиков пыли Sharp
+GP2YDustSensor dustSensor(GP2YDustSensorType::GP2Y1014AU0F, DUST_SENSOR_LED_PIN, DUST_SENSOR_PIN);
 
 // Таймер для записи блекбокса в EEPROM
 unsigned long eepromBlackboxTimer = 0;
@@ -241,6 +243,9 @@ void setup()
         }
     }
 
+    // Датчик пыли
+    dustSensor.begin();
+
     // Нет нужны окружать ifdef калибровок, так как функции калибровок блокирующие исполнение далее
     Watchdog.reset();
 }
@@ -276,6 +281,7 @@ void loop()
         }
 
         saveAnalogUV(meteodata);
+        saveAnalogDust(meteodata);
 
         printToSD(meteodata);
 
@@ -550,6 +556,10 @@ bool printToSD(const MP_Data &data)
     sd.print(data.magHeading, 3);
     sd.print(',');
     sd.print(data.analogUV);
+    sd.print(',');
+    sd.print(data.analogDust);
+    sd.print(',');
+    sd.print(data.dustRunningAverage);
 
     sd.println();
     sd.flush(); // Обязательно сброс буферов!
@@ -675,6 +685,14 @@ void printToConsole(const MP_Data &data)
     DEBUG_PORT.print(data.analogUV);
     DEBUG_PORT.println(" ");
 
+    DEBUG_PORT.print("Dust Level ug/m3: ");
+    DEBUG_PORT.print(data.analogDust);
+    DEBUG_PORT.println(" ");
+
+    DEBUG_PORT.print("Dust average ug/m3: ");
+    DEBUG_PORT.print(data.dustRunningAverage);
+    DEBUG_PORT.println(" ");
+
     DEBUG_PORT.println();
     DEBUG_PORT.flush();
 }
@@ -689,7 +707,7 @@ void printHeaderToSD()
         sd.print(F("year,month,date,hours,minutes,seconds,millis,"));
         sd.print(F("latitude,longitude,altitude,speed,heading,HDOP,VDOP,satellites,"));
         sd.print(F("in_temp,out_temp,sht2x_temp,humidity,pressure,"));
-        sd.print(F("ax,ay,az,aAmp,gx,gy,gz,mx,my,mz,magHeading,UV"));
+        sd.print(F("ax,ay,az,aAmp,gx,gy,gz,mx,my,mz,magHeading,UV,dust,dustAverage"));
 
         sd.println();
         sd.flush();
@@ -1119,6 +1137,7 @@ void resetPinModes()
     pinMode(SUCCESS_MPU9250_PIN, OUTPUT);
     pinMode(SUCCESS_SD_PIN, OUTPUT);
     pinMode(SUCCESS_SHT2X_PIN, OUTPUT);
+    pinMode(DUST_SENSOR_LED_PIN, OUTPUT);
 
     pinMode(RELAY_1_PIN, OUTPUT);
     pinMode(RELAY_2_PIN, OUTPUT);
@@ -1131,6 +1150,7 @@ void resetPinModes()
     LED_OFF(SUCCESS_MPU9250_PIN);
     LED_OFF(SUCCESS_SD_PIN);
     LED_OFF(SUCCESS_SHT2X_PIN);
+    LED_OFF(DUST_SENSOR_LED_PIN);
 
     // Выключить реле
     LED_OFF(RELAY_1_PIN);
@@ -1226,4 +1246,21 @@ void relay()
         LED_OFF(RELAY_1_PIN);
         LED_OFF(RELAY_2_PIN);
     }
+}
+
+void saveAnalogDust(MP_Data &data)
+{
+#ifdef DEBUG
+    unsigned long start = millis();
+#endif
+
+    // Нет возможности проверить что сенсор пыли доступен, поскольку это просто напряжение
+    data.analogDust = dustSensor.getDustDensity(20U); // 0 - 600
+    data.dustRunningAverage = dustSensor.getRunningAverage();
+
+#ifdef DEBUG
+    DEBUG_PORT.print(F("Save Analog Dust took: "));
+    DEBUG_PORT.print(millis() - start);
+    DEBUG_PORT.println(" ms");
+#endif
 }

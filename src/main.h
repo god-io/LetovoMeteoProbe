@@ -27,6 +27,9 @@
 // Библиотека акселерометра/гироскопа/магнетометра
 #include <MPU9250.h>
 
+// Библиотека для работы с датчиком пыли
+#include <GP2YDustSensor.h>
+
 // Библиотека для работы с EEPROM
 #include <EEPROM.h>
 
@@ -55,13 +58,18 @@
 // Пин Chip Select для работы SPI карты памяти
 #define CS_PIN (53)
 // Пин для внешнего датчика температуры DS18B20
-#define DS18B20_PIN (40)
+#define DS18B20_PIN (38)
 // Пин для аналогового датчика УФ
 #define UV_SENSOR_PIN (A8)
 
 // Пин для выхода реле/ключа
-#define RELAY_1_PIN (41)
+#define RELAY_1_PIN (39)
 #define RELAY_2_PIN (42)
+
+// Пин аналогового сигнала с датчика пыли
+#define DUST_SENSOR_PIN (A9)
+// Цифровой пин управления светодиодом датчика пыли
+#define DUST_SENSOR_LED_PIN (40)
 
 // Пины для статусных светодиодов. На меге много портов
 #define SUCCESS_POWER_PIN (29)
@@ -87,9 +95,9 @@
 #define KMH_TO_MS (1000.0f / 3600)
 
 // Раз в 5 минут включать камеры
-#define RELAY_SWITCHON_TIMEOUT_S (300)
+#define RELAY_SWITCHON_TIMEOUT_S (30)
 // через минуту выключать
-#define RELAY_SWITCHOFF_TIMEOUT_S (75)
+#define RELAY_SWITCHOFF_TIMEOUT_S (15)
 
 // Структура для хранения строки данных Meteorological Probe Data
 // Дефолтные данные неверные изначально. Они заменяются реальными только если валидны
@@ -134,6 +142,8 @@ struct MP_Data
     float magHeading = -1000.0f;  // градусы
 
     int analogUV = -32000;  // 0 - 1023
+    uint16_t analogDust = 65535; // 0 - 600 мкг/м3
+    uint16_t dustRunningAverage = 65535; // 60 семплов
 };
 
 // Заставить компилятор максимально упаковать данные структуры в памяти без пробелов. Влияет на sizeof()
@@ -207,6 +217,8 @@ void saveMPU9250(MP_Data &data);
 void saveSHT2x(MP_Data &data);
 // Сохраняет данные с аналогового датчика УФ
 void saveAnalogUV(MP_Data &data);
+// Сохраняет данные с аналогового датчика пыли
+void saveAnalogDust(MP_Data &data);
 // Устанавливает режимы пинов и обнуляет всё
 void resetPinModes();
 
