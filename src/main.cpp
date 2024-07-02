@@ -32,6 +32,12 @@ unsigned long relayOffTimer = 0;
 // Признак включения реле
 bool relayON = false;
 
+// Состояния датчиков при старте. Нужны для случая определения отвала датчика
+bool isBMP280Present = false;
+bool isDS18B20Present = false;
+bool isMPU9250Present = false;
+bool isSHT2xPresent = false;
+
 // Экземпляр структуры для хранения параметров калибровки магнетометра
 magCalibration magCal;
 
@@ -82,14 +88,11 @@ void setup()
                            Adafruit_BMP280::STANDBY_MS_250); /* Standby time. */
 
         LED_ON(SUCCESS_BMP280_PIN);
+        isBMP280Present = true;
     }
     else
     {
         debugInfo(F("ERROR - BMP280 not present!"));
-        while (true)
-        {
-            ;
-        }
     }
 
     // Поиск устройств на шине oneWire
@@ -98,10 +101,6 @@ void setup()
     if (outsideTemperatureSensor.getDeviceCount() == 0)
     {
         debugInfo(F("ERROR - cannot find DS18B20 temp sensor!"));
-        while (true)
-        {
-            ;
-        }
     }
     else
     {
@@ -120,21 +119,21 @@ void setup()
         // Must be called before search()
         oneWire.reset_search();
         // assigns the first address found to insideThermometer
-        if (!oneWire.search(outsideThermometerAddress))
+
+        if (oneWire.search(outsideThermometerAddress))
+        {
+            debugInfo(F("Found oneWire device address (DS18B20)"));
+
+            // Разрешение АЦП датчика. До 12 бит (4096 градации), но медленно получает данные (750 мс!)
+            outsideTemperatureSensor.setResolution(outsideThermometerAddress, 10);
+
+            LED_ON(SUCCESS_DS18B20_PIN);
+            isDS18B20Present = true;
+        }
+        else
         {
             debugInfo(F("ERROR - Unable to find address for oneWire Device"));
-            while (true)
-            {
-                ;
-            }
         }
-
-        debugInfo(F("Found oneWire device address (DS18B20)"));
-
-        // Разрешение АЦП датчика. До 12 бит (4096 градации), но медленно получает данные (750 мс!)
-        outsideTemperatureSensor.setResolution(outsideThermometerAddress, 10);
-
-        LED_ON(SUCCESS_DS18B20_PIN);
     }
 
     // Акселерометр/гироскоп/магнетометр
@@ -145,40 +144,39 @@ void setup()
     imu.initialize();
 
     debugInfo(F("Testing device connections..."));
-    if (!imu.testConnection())
+    if (imu.testConnection())
     {
-        debugInfo(F("ERROR - MPU9250 connection failed!"));
-        while (true)
-        {
-            ;
-        }
-    }
-
-    debugInfo(F("MPU9250 connection successful"));
-    debugInfo(F("Set Accel and Gyro ranges"));
-    // Установка диапазона акселерометра/гироскопа
-    imu.setFullScaleAccelRange(MPU9250_ACCEL_FS_8); // 8G
-    imu.setFullScaleGyroRange(MPU9250_GYRO_FS_500); // 500 град/с
-
-    LED_ON(SUCCESS_MPU9250_PIN);
+        debugInfo(F("MPU9250 connection successful"));
+        debugInfo(F("Set Accel and Gyro ranges"));
+        // Установка диапазона акселерометра/гироскопа
+        imu.setFullScaleAccelRange(MPU9250_ACCEL_FS_8); // 8G
+        imu.setFullScaleGyroRange(MPU9250_GYRO_FS_500); // 500 град/с
 
 #ifdef DEBUG
-    debugInfo("Accel range now is:", false);
-    DEBUG_PORT.println(imu.getFullScaleAccelRange());
-    debugInfo("Gyro range now is:", false);
-    DEBUG_PORT.println(imu.getFullScaleGyroRange());
+        debugInfo("Accel range now is:", false);
+        DEBUG_PORT.println(imu.getFullScaleAccelRange());
+        debugInfo("Gyro range now is:", false);
+        DEBUG_PORT.println(imu.getFullScaleGyroRange());
 #endif
 
 #ifdef ACCEL_GYRO_CALIBRATE
-    calibrateAccelGyro();
+        calibrateAccelGyro();
 #endif
 
 #ifdef MAGNETOMETER_CALIBRATE
-    calibrateMagnetometer();
+        calibrateMagnetometer();
 #endif
 
-    debugInfo(F("Read and set AGM offsets..."));
-    setAccelGyroMagOffsets();
+        debugInfo(F("Read and set AGM offsets..."));
+        setAccelGyroMagOffsets();
+
+        LED_ON(SUCCESS_MPU9250_PIN);
+        isMPU9250Present = true;
+    }
+    else
+    {
+        debugInfo(F("ERROR - MPU9250 connection failed!"));
+    }
 
     Wire.begin();
 
@@ -201,14 +199,11 @@ void setup()
 #endif
 
         LED_ON(SUCCESS_SHT2X_PIN);
+        isSHT2xPresent = true;
     }
     else
     {
         debugInfo(F("ERROR - Initialization of SHT2X FAILED!"));
-        while (true) // Не работает, уходим в зависон
-        {
-            ;
-        }
     }
 
     debugInfo(F("Initializing SD card..."));
@@ -259,10 +254,27 @@ void loop()
     {
         LED_ON(SUCCESS_GPS_PIN);
 
-        saveBMP280(meteodata);
-        saveDS18B20(meteodata);
-        saveMPU9250(meteodata);
-        saveSHT2x(meteodata);
+        // Обязательно проверим что датчик существует перед попыткой сбора данных
+        if (isBMP280Present)
+        {
+            saveBMP280(meteodata);
+        }
+
+        if (isDS18B20Present)
+        {
+            saveDS18B20(meteodata);
+        }
+
+        if (isMPU9250Present)
+        {
+            saveMPU9250(meteodata);
+        }
+
+        if (isSHT2xPresent)
+        {
+            saveSHT2x(meteodata);
+        }
+
         saveAnalogUV(meteodata);
 
         printToSD(meteodata);
@@ -1111,7 +1123,7 @@ void resetPinModes()
     pinMode(RELAY_1_PIN, OUTPUT);
     pinMode(RELAY_2_PIN, OUTPUT);
 
-     // Выключаем зелёные
+    // Выключаем зелёные
     LED_OFF(SUCCESS_POWER_PIN);
     LED_OFF(SUCCESS_GPS_PIN);
     LED_OFF(SUCCESS_BMP280_PIN);
@@ -1124,7 +1136,6 @@ void resetPinModes()
     LED_OFF(RELAY_1_PIN);
     LED_OFF(RELAY_2_PIN);
 }
-
 
 void eepromBlackboxReset()
 {
@@ -1207,7 +1218,7 @@ void relay()
 
     // Выключаем реле по интервалу
     if (((millis() - relayOffTimer) > RELAY_SWITCHOFF_TIMEOUT_S * 1000UL) && relayON)
-    {   
+    {
         debugInfo(F("Switch OFF relays"));
 
         relayOnTimer = millis();

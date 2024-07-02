@@ -53,11 +53,11 @@
 #endif
 
 // Пин Chip Select для работы SPI карты памяти
-#define CS_PIN (7)
+#define CS_PIN (53)
 // Пин для внешнего датчика температуры DS18B20
-#define DS18B20_PIN (2)
+#define DS18B20_PIN (40)
 // Пин для аналогового датчика УФ
-#define UV_SENSOR_PIN (A0)
+#define UV_SENSOR_PIN (A8)
 
 // Пин для выхода реле/ключа
 #define RELAY_1_PIN (41)
@@ -65,12 +65,14 @@
 
 // Пины для статусных светодиодов. На меге много портов
 #define SUCCESS_POWER_PIN (29)
-#define SUCCESS_GPS_PIN (30)
+
 #define SUCCESS_BMP280_PIN (31)
-#define SUCCESS_DS18B20_PIN (32)
+#define SUCCESS_DS18B20_PIN (30)
 #define SUCCESS_MPU9250_PIN (33)
-#define SUCCESS_SD_PIN (34)
-#define SUCCESS_SHT2X_PIN (35)
+#define SUCCESS_SHT2X_PIN (32)
+#define SUCCESS_SD_PIN (35)
+#define SUCCESS_GPS_PIN (34)
+
 
 // Адрес ячейки EEPROM для хранения данных о номере блока
 #define BLACKBOX_COUNT_EEPROM_ADDRESS (4050)
@@ -87,7 +89,7 @@
 // Раз в 5 минут включать камеры
 #define RELAY_SWITCHON_TIMEOUT_S (300)
 // через минуту выключать
-#define RELAY_SWITCHOFF_TIMEOUT_S (60)
+#define RELAY_SWITCHOFF_TIMEOUT_S (75)
 
 // Структура для хранения строки данных Meteorological Probe Data
 // Дефолтные данные неверные изначально. Они заменяются реальными только если валидны
