@@ -40,6 +40,9 @@ bool isDS18B20Present = false;
 bool isMPU9250Present = false;
 bool isSHT2xPresent = false;
 
+// Признак захвата позиции GPS для светодиодной индикации
+bool isGPSFixed = false;
+
 // Экземпляр структуры для хранения параметров калибровки магнетометра
 magCalibration magCal;
 
@@ -257,8 +260,6 @@ void loop()
 
     if (saveGPS(meteodata)) // Нет смысла опрашивать датчики, если gps невалиден вообще
     {
-        LED_ON(SUCCESS_GPS_PIN);
-
         // Обязательно проверим что датчик существует перед попыткой сбора данных
         if (isBMP280Present)
         {
@@ -297,6 +298,9 @@ void loop()
         printToConsole(meteodata);
 #endif
     }
+
+    if (isGPSFixed) { LED_ON(SUCCESS_GPS_PIN); }
+    else { LED_OFF(SUCCESS_GPS_PIN); }
 
     // Обнулить (покормить) таймер, чтобы он не перезапускал МК
     Watchdog.reset();
@@ -365,6 +369,10 @@ bool saveGPS(MP_Data &data)
                 data.longitude = fix.longitude();
 
                 debugInfo(F("3. GPS Position Valid"));
+                isGPSFixed = true;
+            }
+            else {
+                isGPSFixed = false;
             }
 
             // Проверяем высоту, она отдельна от локации
@@ -446,7 +454,7 @@ void saveBMP280(MP_Data &data)
 #endif
 
     debugInfo(F("Reads BMP280 temperature and pressure"));
-    data.internal_temp = bmp280.readTemperature();
+    data.bmp280_temp = bmp280.readTemperature();
     data.pressure = bmp280.readPressure();
 
 #ifdef DEBUG
@@ -493,6 +501,8 @@ bool printToSD(const MP_Data &data)
 
     debugInfo(F("*** Send data to SD ***"));
 
+    LED_OFF(SUCCESS_SD_PIN);
+
     sd.print(data.year);
     sd.print(',');
     sd.print(data.month);
@@ -523,7 +533,7 @@ bool printToSD(const MP_Data &data)
     sd.print(',');
     sd.print(data.satellites_count);
     sd.print(',');
-    sd.print(data.internal_temp, 2);
+    sd.print(data.bmp280_temp, 2);
     sd.print(',');
     sd.print(data.external_temp, 2);
     sd.print(',');
@@ -570,6 +580,7 @@ bool printToSD(const MP_Data &data)
     DEBUG_PORT.println(" ms");
 #endif
 
+    LED_ON(SUCCESS_SD_PIN);
     return true;
 }
 
@@ -618,7 +629,7 @@ void printToConsole(const MP_Data &data)
     DEBUG_PORT.println();
 
     DEBUG_PORT.print("Internal Temp: ");
-    DEBUG_PORT.print(data.internal_temp, 2);
+    DEBUG_PORT.print(data.bmp280_temp, 2);
     DEBUG_PORT.println(" C");
 
     DEBUG_PORT.print("External Temp: ");
@@ -706,7 +717,7 @@ void printHeaderToSD()
         sd.println(F("------------"));
         sd.print(F("year,month,date,hours,minutes,seconds,millis,"));
         sd.print(F("latitude,longitude,altitude,speed,heading,HDOP,VDOP,satellites,"));
-        sd.print(F("in_temp,out_temp,sht2x_temp,humidity,pressure,"));
+        sd.print(F("bmp280_temp,out_temp,sht2x_temp,humidity,pressure,"));
         sd.print(F("ax,ay,az,aAmp,gx,gy,gz,mx,my,mz,magHeading,UV,dust,dustAverage"));
 
         sd.println();
@@ -735,7 +746,7 @@ void saveDataToBlackbox(const MP_Data &data, unsigned long &timer)
     blackbox.speed = data.speed; // м/с
     blackbox.heading = data.heading;
 
-    blackbox.internal_temp = data.internal_temp; // C
+    blackbox.internal_temp = data.sht2x_temp; // C
     blackbox.external_temp = data.external_temp;
     blackbox.humidity = data.humidity; // отн. проценты
     blackbox.pressure = data.pressure; // Па
@@ -1258,7 +1269,9 @@ void saveAnalogDust(MP_Data &data)
     data.analogDust = dustSensor.getDustDensity(20U); // 0 - 600
     data.dustRunningAverage = dustSensor.getRunningAverage();
 
+
 #ifdef DEBUG
+    DEBUG_PORT.println(analogRead(DUST_SENSOR_PIN));
     DEBUG_PORT.print(F("Save Analog Dust took: "));
     DEBUG_PORT.print(millis() - start);
     DEBUG_PORT.println(" ms");

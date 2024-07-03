@@ -37,7 +37,7 @@
 #include <GyverWDT.h>
 
 // Можно заворачивать куски кода в #ifdef DEBUG... #endif чтобы сразу включить/выключить одним переключателем
-#define DEBUG
+// #define DEBUG
 
 // Режим калибровки акселерометра и гироскопа
 // #define ACCEL_GYRO_CALIBRATE
@@ -58,21 +58,21 @@
 // Пин Chip Select для работы SPI карты памяти
 #define CS_PIN (53)
 // Пин для внешнего датчика температуры DS18B20
-#define DS18B20_PIN (38)
+#define DS18B20_PIN (36)
 // Пин для аналогового датчика УФ
 #define UV_SENSOR_PIN (A8)
 
 // Пин для выхода реле/ключа
-#define RELAY_1_PIN (39)
+#define RELAY_1_PIN (37)
 #define RELAY_2_PIN (42)
 
 // Пин аналогового сигнала с датчика пыли
 #define DUST_SENSOR_PIN (A9)
 // Цифровой пин управления светодиодом датчика пыли
-#define DUST_SENSOR_LED_PIN (40)
+#define DUST_SENSOR_LED_PIN (39)
 
 // Пины для статусных светодиодов. На меге много портов
-#define SUCCESS_POWER_PIN (29)
+#define SUCCESS_POWER_PIN (13)
 
 #define SUCCESS_BMP280_PIN (31)
 #define SUCCESS_DS18B20_PIN (30)
@@ -94,10 +94,10 @@
 // Константа для пересчёта км/ч в м/с
 #define KMH_TO_MS (1000.0f / 3600)
 
-// Раз в 5 минут включать камеры
-#define RELAY_SWITCHON_TIMEOUT_S (30)
+// Раз в 4 минуты включать камеры
+#define RELAY_SWITCHON_TIMEOUT_S (240)
 // через минуту выключать
-#define RELAY_SWITCHOFF_TIMEOUT_S (15)
+#define RELAY_SWITCHOFF_TIMEOUT_S (75)
 
 // Структура для хранения строки данных Meteorological Probe Data
 // Дефолтные данные неверные изначально. Они заменяются реальными только если валидны
@@ -120,7 +120,7 @@ struct MP_Data
     float vdop = -1000.0f;
     uint8_t satellites_count = 255;
 
-    float internal_temp = -1000.0f; // C
+    float bmp280_temp = -1000.0f; // C
     float external_temp = -1000.0f;
     float sht2x_temp = -1000.0f; 
     float humidity = -1000.0f; // отн. проценты
